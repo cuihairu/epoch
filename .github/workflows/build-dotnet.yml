@@ -1,0 +1,38 @@
+name: build-dotnet
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect .NET project
+        id: detect
+        run: |
+          if ls dotnet/*.sln dotnet/*.csproj >/dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up .NET
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          if ls dotnet/*.sln >/dev/null 2>&1; then
+            dotnet build dotnet/*.sln
+          else
+            dotnet build dotnet/*.csproj
+          fi
+      - name: Test
+        if: steps.detect.outputs.present == 'true' && hashFiles('dotnet/Epoch.Tests/Epoch.Tests.csproj') != ''
+        run: dotnet run --project dotnet/Epoch.Tests/Epoch.Tests.csproj
+      - name: Skip (no .NET project yet)
+        if: steps.detect.outputs.present != 'true'
+        run: echo "No .NET sources yet."

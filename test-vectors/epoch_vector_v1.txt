@@ -1,0 +1,11 @@
+# epoch-vector-v1
+# Format:
+# M,epoch,channelId,sourceId,sourceSeq,schemaId,payload
+# E,epoch,state,hash (fnv1a64 of "state:<value>")
+
+M,1,1,2,1,1,5
+M,1,1,1,1,1,3
+M,2,1,1,2,1,7
+
+E,1,8,c3c445f01be7c334
+E,2,15,8e2e6bff6abcc44e

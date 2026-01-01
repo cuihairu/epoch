@@ -1,0 +1,33 @@
+name: build-node
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect Node project
+        id: detect
+        run: |
+          if [ -f node/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up Node
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Test
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          cd node
+          npm install --no-package-lock
+          npm test
+      - name: Skip (no Node project yet)
+        if: steps.detect.outputs.present != 'true'
+        run: echo "No Node sources yet."

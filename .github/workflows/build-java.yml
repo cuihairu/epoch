@@ -1,0 +1,39 @@
+name: build-java
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect Java project
+        id: detect
+        run: |
+          if [ -f java/gradlew ] || [ -f java/mvnw ] || [ -f java/pom.xml ] || [ -f java/build.gradle ] || [ -f java/build.gradle.kts ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up Java
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Test (script)
+        if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-tests.sh') != ''
+        run: java/scripts/run-tests.sh
+      - name: Build (Gradle)
+        if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-tests.sh') == '' && hashFiles('java/gradlew') != ''
+        run: |
+          chmod +x java/gradlew
+          java/gradlew -p java build
+      - name: Build (Maven)
+        if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-tests.sh') == '' && hashFiles('java/pom.xml') != ''
+        run: mvn -B -f java/pom.xml test
+      - name: Skip (no Java project yet)
+        if: steps.detect.outputs.present != 'true'
+        run: echo "No Java sources yet."

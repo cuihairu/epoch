@@ -53,3 +53,29 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# macOS
+.DS_Store
+
+# Node / VuePress
+node_modules/
+docs/.vuepress/dist/
+docs/.vuepress/cache/
+docs/.vuepress/temp/
+
+# Build outputs
+cppbuild/
+java/target/
+dotnet/bin/
+dotnet/obj/
+dotnet/**/bin/
+dotnet/**/obj/
+python/__pycache__/
+python/**/__pycache__/
+python/.pytest_cache/
+python/**/.pytest_cache/
+python/build/
+python/dist/
+python/*.egg-info/
+python/**/*.pyc
+.gocache/

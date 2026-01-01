@@ -1,0 +1,32 @@
+name: build-go
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect Go project
+        id: detect
+        run: |
+          if [ -f go/go.mod ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up Go
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+      - name: Build
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          cd go
+          go test ./...
+      - name: Skip (no Go project yet)
+        if: steps.detect.outputs.present != 'true'
+        run: echo "No Go sources yet."

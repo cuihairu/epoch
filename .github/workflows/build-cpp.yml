@@ -1,0 +1,30 @@
+name: build-cpp
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect C++ project
+        id: detect
+        run: |
+          if [ -f cpp/CMakeLists.txt ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          cmake -S cpp -B cppbuild
+          cmake --build cppbuild
+      - name: Test
+        if: steps.detect.outputs.present == 'true'
+        run: ctest --test-dir cppbuild --output-on-failure
+      - name: Skip (no C++ project yet)
+        if: steps.detect.outputs.present != 'true'
+        run: echo "No C++ sources yet."

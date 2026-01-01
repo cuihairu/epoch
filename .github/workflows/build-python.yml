@@ -1,0 +1,32 @@
+name: build-python
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect Python project
+        id: detect
+        run: |
+          if [ -f python/pyproject.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up Python
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          cd python
+          python -m unittest discover -s tests
+      - name: Skip (no Python project yet)
+        if: steps.detect.outputs.present != 'true'
+        run: echo "No Python sources yet."
