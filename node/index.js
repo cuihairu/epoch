@@ -81,11 +81,28 @@ class InMemoryTransport {
   }
 }
 
+class AeronTransport {
+  constructor(config) {
+    this.config = config;
+  }
+
+  send() {
+    throw new Error("Aeron transport not linked");
+  }
+
+  poll() {
+    throw new Error("Aeron transport not linked");
+  }
+
+  close() {}
+}
+
 module.exports = {
   version,
   fnv1a64Hex,
   processMessages,
   InMemoryTransport,
+  AeronTransport,
   defaultActorIdCodec: actorId.defaultActorIdCodec,
   encodeActorId: actorId.encodeActorId,
   decodeActorId: actorId.decodeActorId
