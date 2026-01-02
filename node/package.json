@@ -2,11 +2,15 @@
   "name": "epoch",
   "version": "0.1.0",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "c8 --reporter=lcov --reporter=text node --test"
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && c8 --reporter=lcov --reporter=text node --test"
   },
   "devDependencies": {
-    "c8": "9.1.0"
+    "c8": "9.1.0",
+    "@types/node": "22.13.1",
+    "typescript": "5.5.4"
   }
 }

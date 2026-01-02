@@ -1,14 +1,30 @@
-function version() {
+import { decodeActorId, defaultActorIdCodec, encodeActorId } from "./actor-id";
+
+export type Message = {
+  epoch: number;
+  channelId: number;
+  sourceId: number;
+  sourceSeq: number;
+  schemaId: number;
+  qos?: number;
+  payload: number;
+};
+
+export type AeronConfig = {
+  channel: string;
+  streamId: number;
+  aeronDirectory: string;
+};
+
+export function version(): string {
   return "0.1.0";
 }
-
-const actorId = require("./actor-id");
 
 const FNV_OFFSET_BASIS = 0xcbf29ce484222325n;
 const FNV_PRIME = 0x100000001b3n;
 const FNV_MASK = 0xffffffffffffffffn;
 
-function fnv1a64Hex(input) {
+export function fnv1a64Hex(input: string): string {
   let hash = FNV_OFFSET_BASIS;
   const bytes = Buffer.from(input, "utf8");
   for (const b of bytes) {
@@ -18,7 +34,7 @@ function fnv1a64Hex(input) {
   return hash.toString(16).padStart(16, "0");
 }
 
-function processMessages(messages) {
+export function processMessages(messages: Message[]) {
   messages.sort((a, b) => {
     if (a.epoch !== b.epoch) return a.epoch - b.epoch;
     if (a.channelId !== b.channelId) return a.channelId - b.channelId;
@@ -29,9 +45,9 @@ function processMessages(messages) {
     return a.sourceSeq - b.sourceSeq;
   });
 
-  const results = [];
+  const results: { epoch: number; state: number; hash: string }[] = [];
   let state = 0;
-  let currentEpoch = null;
+  let currentEpoch: number | null = null;
 
   for (const message of messages) {
     if (currentEpoch === null) {
@@ -59,16 +75,14 @@ function processMessages(messages) {
   return results;
 }
 
-class InMemoryTransport {
-  constructor() {
-    this.queue = [];
-  }
+export class InMemoryTransport {
+  private queue: Message[] = [];
 
-  send(message) {
+  send(message: Message) {
     this.queue.push(message);
   }
 
-  poll(max) {
+  poll(max: number) {
     if (!max || this.queue.length === 0) {
       return [];
     }
@@ -81,10 +95,8 @@ class InMemoryTransport {
   }
 }
 
-class AeronTransport {
-  constructor(config) {
-    this.config = config;
-  }
+export class AeronTransport {
+  constructor(public readonly config: AeronConfig) {}
 
   send() {
     throw new Error("Aeron transport not linked");
@@ -97,13 +109,4 @@ class AeronTransport {
   close() {}
 }
 
-module.exports = {
-  version,
-  fnv1a64Hex,
-  processMessages,
-  InMemoryTransport,
-  AeronTransport,
-  defaultActorIdCodec: actorId.defaultActorIdCodec,
-  encodeActorId: actorId.encodeActorId,
-  decodeActorId: actorId.decodeActorId
-};
+export { defaultActorIdCodec, encodeActorId, decodeActorId };

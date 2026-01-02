@@ -1,3 +1,17 @@
+export type ActorIdParts = {
+  region: number;
+  server: number;
+  processType: number;
+  processIndex: number;
+  actorIndex: number;
+};
+
+export type ActorIdCodec = {
+  name: string;
+  encode(parts: ActorIdParts): bigint;
+  decode(value: bigint): ActorIdParts;
+};
+
 const REGION_BITS = 10n;
 const SERVER_BITS = 12n;
 const PROCESS_TYPE_BITS = 6n;
@@ -16,7 +30,7 @@ const PROCESS_TYPE_SHIFT = PROCESS_INDEX_SHIFT + PROCESS_INDEX_BITS;
 const SERVER_SHIFT = PROCESS_TYPE_SHIFT + PROCESS_TYPE_BITS;
 const REGION_SHIFT = SERVER_SHIFT + SERVER_BITS;
 
-const defaultActorIdCodec = {
+export const defaultActorIdCodec: ActorIdCodec = {
   name: "default",
   encode(parts) {
     const region = BigInt(parts.region);
@@ -51,16 +65,10 @@ const defaultActorIdCodec = {
   }
 };
 
-function encodeActorId(parts, codec = defaultActorIdCodec) {
+export function encodeActorId(parts: ActorIdParts, codec: ActorIdCodec = defaultActorIdCodec): bigint {
   return codec.encode(parts);
 }
 
-function decodeActorId(value, codec = defaultActorIdCodec) {
+export function decodeActorId(value: bigint, codec: ActorIdCodec = defaultActorIdCodec): ActorIdParts {
   return codec.decode(value);
 }
-
-module.exports = {
-  defaultActorIdCodec,
-  encodeActorId,
-  decodeActorId
-};

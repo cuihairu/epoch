@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const fs = require("node:fs");
 const path = require("node:path");
-const epoch = require("../index.js");
+const epoch = require("../dist/index.js");
 
 test("vector matches expected", () => {
   const vectorPath = locateVectorFile();
