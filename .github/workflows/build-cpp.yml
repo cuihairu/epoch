@@ -16,6 +16,7 @@ jobs:
           submodules: recursive
       - name: Detect C++ project
         id: detect
+        shell: bash
         run: |
           if [ -f cpp/CMakeLists.txt ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
