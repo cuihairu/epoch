@@ -34,7 +34,7 @@
 - 行为与一致性：`docs/guide/behavior.md`
 - 协议与传输：`docs/guide/protocol.md`
 - 语言实现：`docs/guide/languages.md`
-- 设计文档（完整）：`epoch_actor_design_doc.md`
+- 设计文档（完整）：`docs/guide/epoch-actor-design.md`
 - 站点文档（VuePress v2）：`docs/`
 
 ## 本地预览
