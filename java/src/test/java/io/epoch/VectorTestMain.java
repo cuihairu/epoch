@@ -15,6 +15,20 @@ public final class VectorTestMain {
         long actorId = ActorId.encode(actorParts);
         ActorId.Parts decoded = ActorId.decode(actorId);
         ensure(actorParts.equals(decoded), "ActorId codec mismatch");
+        ensure("default".equals(ActorId.DEFAULT.name()), "ActorId codec name mismatch");
+        boolean actorIdFailed = false;
+        try {
+            ActorId.encode(new ActorId.Parts(1 << 10, 1, 1, 1, 1));
+        } catch (IllegalArgumentException ex) {
+            actorIdFailed = true;
+        }
+        ensure(actorIdFailed, "ActorId out of range mismatch");
+
+        AeronTransport.AeronConfig normalized = new AeronTransport.AeronConfig(
+            "aeron:ipc", 1, "", 0, 0, null, false, false, false);
+        ensure(normalized.fragmentLimit() == 64, "AeronConfig fragment limit mismatch");
+        ensure(normalized.offerMaxAttempts() == 10, "AeronConfig offer attempts mismatch");
+        ensure(normalized.idleStrategy() != null, "AeronConfig idle strategy mismatch");
 
         List<Engine.Message> sampleMessages = new ArrayList<>();
         sampleMessages.add(new Engine.Message(2, 2, 1, 2, 100, 0, 5));
@@ -42,6 +56,62 @@ public final class VectorTestMain {
         ensure(second.size() == 1 && second.get(0).payload == 3, "Transport second poll mismatch");
         transport.close();
         ensure(transport.poll(1).isEmpty(), "Transport close mismatch");
+
+        org.agrona.concurrent.UnsafeBuffer buffer =
+            new org.agrona.concurrent.UnsafeBuffer(new org.agrona.ExpandableArrayBuffer(AeronMessageCodec.FRAME_LENGTH));
+        Engine.Message codecMessage = new Engine.Message(9, 8, 7, 6, 5, 4, -3);
+        AeronMessageCodec.encode(buffer, 0, codecMessage);
+        Engine.Message decodedMessage = AeronMessageCodec.decode(buffer, 0);
+        ensure(decodedMessage.epoch == codecMessage.epoch &&
+               decodedMessage.channelId == codecMessage.channelId &&
+               decodedMessage.sourceId == codecMessage.sourceId &&
+               decodedMessage.sourceSeq == codecMessage.sourceSeq &&
+               decodedMessage.schemaId == codecMessage.schemaId &&
+               decodedMessage.qos == codecMessage.qos &&
+               decodedMessage.payload == codecMessage.payload, "AeronMessageCodec mismatch");
+        buffer.putByte(0, (byte) 2);
+        boolean codecFailed = false;
+        try {
+            AeronMessageCodec.decode(buffer, 0);
+        } catch (IllegalArgumentException ex) {
+            codecFailed = true;
+        }
+        ensure(codecFailed, "AeronMessageCodec version mismatch");
+
+        AeronTransport.AeronConfig aeronConfig = new AeronTransport.AeronConfig(
+            "aeron:ipc", 42, "", 64, 10, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
+        AeronTransport aeronTransport = new AeronTransport(aeronConfig, new FakeAeronAdapter());
+        try {
+            List<Engine.Message> aeronOut = List.of();
+            Engine.Message aeronMessage = new Engine.Message(1, 1, 1, 1, 1, 1, 5);
+            aeronTransport.send(aeronMessage);
+            aeronOut = aeronTransport.poll(1);
+            ensure(!aeronOut.isEmpty(), "AeronTransport poll empty");
+            ensure(aeronOut.get(0).payload == 5, "AeronTransport payload mismatch");
+            ensure(aeronTransport.stats().sentCount() >= 1, "AeronTransport stats sent mismatch");
+            ensure(aeronTransport.stats().receivedCount() >= 1, "AeronTransport stats received mismatch");
+            ensure(aeronTransport.poll(0).isEmpty(), "AeronTransport poll(0) mismatch");
+        } finally {
+            aeronTransport.close();
+        }
+
+        AeronTransport.AeronConfig failingConfig = new AeronTransport.AeronConfig(
+            "aeron:ipc", 42, "", 64, 2, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
+        AeronTransport failingTransport = new AeronTransport(
+            failingConfig,
+            new FakeAeronAdapter(io.aeron.Publication.BACK_PRESSURED, io.aeron.Publication.BACK_PRESSURED));
+        try {
+            boolean failed = false;
+            try {
+                failingTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 1));
+            } catch (IllegalStateException ex) {
+                failed = true;
+            }
+            ensure(failed, "AeronTransport offer failure mismatch");
+            ensure(failingTransport.stats().offerBackPressure() == 2, "AeronTransport stats back pressure mismatch");
+        } finally {
+            failingTransport.close();
+        }
 
         Path vector = locateVectorFile();
         List<Engine.Message> messages = new ArrayList<>();
@@ -92,6 +162,47 @@ public final class VectorTestMain {
     private static void ensure(boolean condition, String message) {
         if (!condition) {
             throw new IllegalStateException(message);
+        }
+    }
+
+    private static final class FakeAeronAdapter implements AeronTransport.AeronAdapter {
+        private final List<byte[]> frames = new ArrayList<>();
+        private final List<Long> offerResults = new ArrayList<>();
+
+        FakeAeronAdapter(long... results) {
+            for (long result : results) {
+                offerResults.add(result);
+            }
+        }
+
+        @Override
+        public long offer(org.agrona.DirectBuffer buffer, int offset, int length) {
+            if (!offerResults.isEmpty()) {
+                long result = offerResults.remove(0);
+                if (result < 0) {
+                    return result;
+                }
+            }
+            byte[] copy = new byte[length];
+            buffer.getBytes(offset, copy);
+            frames.add(copy);
+            return 1;
+        }
+
+        @Override
+        public int poll(io.aeron.logbuffer.FragmentHandler handler, int fragmentLimit) {
+            int count = 0;
+            while (count < fragmentLimit && !frames.isEmpty()) {
+                byte[] frame = frames.remove(0);
+                handler.onFragment(new org.agrona.concurrent.UnsafeBuffer(frame), 0, frame.length, null);
+                count++;
+            }
+            return count;
+        }
+
+        @Override
+        public void close() {
+            frames.clear();
         }
     }
 

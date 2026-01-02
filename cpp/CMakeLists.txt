@@ -4,6 +4,7 @@ project(epoch_cpp VERSION 0.1.0 LANGUAGES C CXX)
 add_library(epoch_cpp src/epoch.cpp src/engine.cpp src/actor_id.cpp src/aeron_transport.cpp)
 
 target_include_directories(epoch_cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_definitions(epoch_cpp PRIVATE EPOCH_TESTING)
 
 target_compile_features(epoch_cpp PUBLIC cxx_std_17)
 
@@ -41,10 +42,21 @@ enable_testing()
 add_executable(epoch_cpp_test tests/epoch_vector_test.cpp)
 target_link_libraries(epoch_cpp_test PRIVATE epoch_cpp)
 add_test(NAME epoch_cpp_vector COMMAND epoch_cpp_test)
+target_compile_definitions(epoch_cpp_test PRIVATE EPOCH_TESTING)
+
+add_executable(epoch_cpp_core_test tests/core_test.cpp)
+target_link_libraries(epoch_cpp_core_test PRIVATE epoch_cpp)
+add_test(NAME epoch_cpp_core COMMAND epoch_cpp_core_test)
+target_compile_definitions(epoch_cpp_core_test PRIVATE EPOCH_TESTING)
+
+add_executable(epoch_cpp_aeron_test tests/aeron_transport_test.cpp)
+target_link_libraries(epoch_cpp_aeron_test PRIVATE epoch_cpp)
+add_test(NAME epoch_cpp_aeron COMMAND epoch_cpp_aeron_test)
+target_compile_definitions(epoch_cpp_aeron_test PRIVATE EPOCH_TESTING)
 
 option(EPOCH_COVERAGE "Enable coverage instrumentation" OFF)
 if (EPOCH_COVERAGE)
-    foreach(target epoch_cpp epoch_cpp_test)
+    foreach(target epoch_cpp epoch_cpp_test epoch_cpp_core_test epoch_cpp_aeron_test)
         target_compile_options(${target} PRIVATE -O0 -g --coverage)
         target_link_options(${target} PRIVATE --coverage)
     endforeach()

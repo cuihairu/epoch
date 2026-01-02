@@ -76,7 +76,7 @@ void throw_if_error(int result, const char *context)
 {
     if (result < 0)
     {
-        throw std::runtime_error(std::string(context) + ": " + aeron_errmsg());
+        throw std::runtime_error(std::string(context) + ": " + epoch::detail::aeron_hooks().errmsg());
     }
 }
 
@@ -84,11 +84,69 @@ void throw_if_null(void *ptr, const char *context)
 {
     if (ptr == nullptr)
     {
-        throw std::runtime_error(std::string(context) + ": " + aeron_errmsg());
+        throw std::runtime_error(std::string(context) + ": " + epoch::detail::aeron_hooks().errmsg());
     }
 }
 
 } // namespace
+
+namespace detail {
+
+AeronHooks &aeron_hooks()
+{
+    static AeronHooks hooks{
+        aeron_context_init,
+        aeron_context_set_dir,
+        aeron_init,
+        aeron_start,
+        aeron_async_add_publication,
+        aeron_async_add_publication_poll,
+        aeron_async_add_subscription,
+        aeron_async_add_subscription_poll,
+        aeron_publication_offer,
+        aeron_subscription_poll,
+        aeron_publication_close,
+        aeron_subscription_close,
+        aeron_close,
+        aeron_context_close,
+        aeron_errmsg,
+    };
+    return hooks;
+}
+
+} // namespace detail
+
+#ifdef EPOCH_TESTING
+namespace test {
+
+detail::AeronHooks &aeron_hooks()
+{
+    return detail::aeron_hooks();
+}
+
+void reset_aeron_hooks()
+{
+    detail::aeron_hooks() = detail::AeronHooks{
+        aeron_context_init,
+        aeron_context_set_dir,
+        aeron_init,
+        aeron_start,
+        aeron_async_add_publication,
+        aeron_async_add_publication_poll,
+        aeron_async_add_subscription,
+        aeron_async_add_subscription_poll,
+        aeron_publication_offer,
+        aeron_subscription_poll,
+        aeron_publication_close,
+        aeron_subscription_close,
+        aeron_close,
+        aeron_context_close,
+        aeron_errmsg,
+    };
+}
+
+} // namespace test
+#endif
 
 AeronTransport::AeronTransport(AeronConfig config) : config_(std::move(config))
 {
@@ -104,25 +162,27 @@ AeronTransport::AeronTransport(AeronConfig config) : config_(std::move(config))
     try
     {
         aeron_context_t *context = nullptr;
-        throw_if_error(aeron_context_init(&context), "aeron_context_init failed");
+        throw_if_error(detail::aeron_hooks().context_init(&context), "aeron_context_init failed");
         if (!config_.aeron_directory.empty())
         {
-            throw_if_error(aeron_context_set_dir(context, config_.aeron_directory.c_str()),
+            throw_if_error(detail::aeron_hooks().context_set_dir(context, config_.aeron_directory.c_str()),
                            "aeron_context_set_dir failed");
         }
         context_ = context;
 
         aeron_t *client = nullptr;
-        throw_if_error(aeron_init(&client, context_), "aeron_init failed");
-        throw_if_error(aeron_start(client), "aeron_start failed");
+        throw_if_error(detail::aeron_hooks().init(&client, context_), "aeron_init failed");
+        throw_if_error(detail::aeron_hooks().start(client), "aeron_start failed");
         client_ = client;
 
         aeron_async_add_publication_t *pub_async = nullptr;
-        throw_if_error(aeron_async_add_publication(&pub_async, client_, config_.channel.c_str(), config_.stream_id),
+        throw_if_error(
+            detail::aeron_hooks().async_add_publication(
+                &pub_async, client_, config_.channel.c_str(), config_.stream_id),
                        "aeron_async_add_publication failed");
         while (true)
         {
-            int poll_result = aeron_async_add_publication_poll(&publication_, pub_async);
+            int poll_result = detail::aeron_hooks().async_add_publication_poll(&publication_, pub_async);
             if (poll_result == 1)
             {
                 break;
@@ -134,12 +194,19 @@ AeronTransport::AeronTransport(AeronConfig config) : config_(std::move(config))
 
         aeron_async_add_subscription_t *sub_async = nullptr;
         throw_if_error(
-            aeron_async_add_subscription(
-                &sub_async, client_, config_.channel.c_str(), config_.stream_id, nullptr, nullptr, nullptr, nullptr),
+            detail::aeron_hooks().async_add_subscription(
+                &sub_async,
+                client_,
+                config_.channel.c_str(),
+                config_.stream_id,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr),
             "aeron_async_add_subscription failed");
         while (true)
         {
-            int poll_result = aeron_async_add_subscription_poll(&subscription_, sub_async);
+            int poll_result = detail::aeron_hooks().async_add_subscription_poll(&subscription_, sub_async);
             if (poll_result == 1)
             {
                 break;
@@ -174,7 +241,8 @@ void AeronTransport::send(const Message &message)
     std::int64_t result = 0;
     do
     {
-        result = aeron_publication_offer(publication_, buffer.data(), buffer.size(), nullptr, nullptr);
+        result = detail::aeron_hooks().publication_offer(
+            publication_, buffer.data(), buffer.size(), nullptr, nullptr);
         if (result >= 0)
         {
             stats_.sent_count++;
@@ -238,7 +306,7 @@ std::vector<Message> AeronTransport::poll(std::size_t max)
         ctx->stats->received_count++;
     };
 
-    int fragments = aeron_subscription_poll(subscription_, handler, &context, limit);
+    int fragments = detail::aeron_hooks().subscription_poll(subscription_, handler, &context, limit);
     throw_if_error(fragments, "aeron_subscription_poll failed");
     return out;
 }
@@ -253,22 +321,22 @@ void AeronTransport::close()
 
     if (publication_ != nullptr)
     {
-        aeron_publication_close(publication_, nullptr, nullptr);
+        detail::aeron_hooks().publication_close(publication_, nullptr, nullptr);
         publication_ = nullptr;
     }
     if (subscription_ != nullptr)
     {
-        aeron_subscription_close(subscription_, nullptr, nullptr);
+        detail::aeron_hooks().subscription_close(subscription_, nullptr, nullptr);
         subscription_ = nullptr;
     }
     if (client_ != nullptr)
     {
-        aeron_close(client_);
+        detail::aeron_hooks().close(client_);
         client_ = nullptr;
     }
     if (context_ != nullptr)
     {
-        aeron_context_close(context_);
+        detail::aeron_hooks().context_close(context_);
         context_ = nullptr;
     }
 }

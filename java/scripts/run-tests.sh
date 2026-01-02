@@ -12,4 +12,4 @@ find "$ROOT_DIR/src/main/java" "$ROOT_DIR/src/test/java" -name "*.java" > "$LIST
 
 javac --release 17 -cp "$CLASSPATH" -d "$OUT_DIR" @"$LIST_FILE"
 
-java -cp "$OUT_DIR:$CLASSPATH" io.epoch.VectorTestMain
+java --add-opens java.base/jdk.internal.misc=ALL-UNNAMED -cp "$OUT_DIR:$CLASSPATH" io.epoch.VectorTestMain

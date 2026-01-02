@@ -46,38 +46,78 @@ public final class AeronTransport implements Transport {
         }
     }
 
+    interface AeronAdapter {
+        long offer(DirectBuffer buffer, int offset, int length);
+
+        int poll(io.aeron.logbuffer.FragmentHandler handler, int fragmentLimit);
+
+        void close();
+    }
+
+    private static final class RealAeronAdapter implements AeronAdapter {
+        private final Aeron aeron;
+        private final Publication publication;
+        private final Subscription subscription;
+        private final MediaDriver mediaDriver;
+
+        private RealAeronAdapter(AeronConfig config) {
+            MediaDriver driver = null;
+            String aeronDir = config.aeronDirectory();
+            if (config.embeddedDriver()) {
+                MediaDriver.Context driverContext = new MediaDriver.Context();
+                if (aeronDir != null && !aeronDir.isBlank()) {
+                    driverContext.aeronDirectoryName(aeronDir);
+                }
+                driverContext.dirDeleteOnStart(config.dirDeleteOnStart());
+                driverContext.dirDeleteOnShutdown(config.dirDeleteOnShutdown());
+                driver = MediaDriver.launch(driverContext);
+                aeronDir = driverContext.aeronDirectoryName();
+            }
+
+            Aeron.Context context = new Aeron.Context();
+            if (aeronDir != null && !aeronDir.isBlank()) {
+                context.aeronDirectoryName(aeronDir);
+            }
+            this.aeron = Aeron.connect(context);
+            this.publication = aeron.addPublication(config.channel(), config.streamId());
+            this.subscription = aeron.addSubscription(config.channel(), config.streamId());
+            this.mediaDriver = driver;
+        }
+
+        @Override
+        public long offer(DirectBuffer buffer, int offset, int length) {
+            return publication.offer(buffer, offset, length);
+        }
+
+        @Override
+        public int poll(io.aeron.logbuffer.FragmentHandler handler, int fragmentLimit) {
+            return subscription.poll(handler, fragmentLimit);
+        }
+
+        @Override
+        public void close() {
+            publication.close();
+            subscription.close();
+            aeron.close();
+            if (mediaDriver != null) {
+                mediaDriver.close();
+            }
+        }
+    }
+
     private final AeronConfig config;
-    private final Aeron aeron;
-    private final Publication publication;
-    private final Subscription subscription;
-    private final MediaDriver mediaDriver;
+    private final AeronAdapter adapter;
     private final UnsafeBuffer sendBuffer;
     private final IdleStrategy idleStrategy;
     private final AeronStats stats = new AeronStats();
 
     public AeronTransport(AeronConfig config) {
-        this.config = config;
-        MediaDriver driver = null;
-        String aeronDir = config.aeronDirectory();
-        if (config.embeddedDriver()) {
-            MediaDriver.Context driverContext = new MediaDriver.Context();
-            if (aeronDir != null && !aeronDir.isBlank()) {
-                driverContext.aeronDirectoryName(aeronDir);
-            }
-            driverContext.dirDeleteOnStart(config.dirDeleteOnStart());
-            driverContext.dirDeleteOnShutdown(config.dirDeleteOnShutdown());
-            driver = MediaDriver.launch(driverContext);
-            aeronDir = driverContext.aeronDirectoryName();
-        }
+        this(config, new RealAeronAdapter(config));
+    }
 
-        Aeron.Context context = new Aeron.Context();
-        if (aeronDir != null && !aeronDir.isBlank()) {
-            context.aeronDirectoryName(aeronDir);
-        }
-        this.aeron = Aeron.connect(context);
-        this.publication = aeron.addPublication(config.channel(), config.streamId());
-        this.subscription = aeron.addSubscription(config.channel(), config.streamId());
-        this.mediaDriver = driver;
+    AeronTransport(AeronConfig config, AeronAdapter adapter) {
+        this.config = config;
+        this.adapter = adapter;
         this.sendBuffer = new UnsafeBuffer(new ExpandableArrayBuffer(AeronMessageCodec.FRAME_LENGTH));
         this.idleStrategy = config.idleStrategy();
     }
@@ -88,7 +128,7 @@ public final class AeronTransport implements Transport {
         int attempts = 0;
         long result;
         do {
-            result = publication.offer(sendBuffer, 0, AeronMessageCodec.FRAME_LENGTH);
+            result = adapter.offer(sendBuffer, 0, AeronMessageCodec.FRAME_LENGTH);
             if (result >= 0) {
                 stats.sentCount++;
                 return;
@@ -108,7 +148,7 @@ public final class AeronTransport implements Transport {
         }
         int limit = Math.min(max, config.fragmentLimit());
         List<Engine.Message> out = new ArrayList<>();
-        subscription.poll((DirectBuffer buffer, int offset, int length, Header header) -> {
+        adapter.poll((DirectBuffer buffer, int offset, int length, Header header) -> {
             if (length < AeronMessageCodec.FRAME_LENGTH) {
                 return;
             }
@@ -120,12 +160,7 @@ public final class AeronTransport implements Transport {
 
     @Override
     public void close() {
-        publication.close();
-        subscription.close();
-        aeron.close();
-        if (mediaDriver != null) {
-            mediaDriver.close();
-        }
+        adapter.close();
     }
 
     public AeronConfig config() {

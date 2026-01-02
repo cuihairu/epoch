@@ -26,7 +26,7 @@ find "$ROOT_DIR/src/main/java" "$ROOT_DIR/src/test/java" -name "*.java" > "$LIST
 
 javac --release 17 -cp "$CLASSPATH" -d "$OUT_DIR" @"$LIST_FILE"
 
-java -javaagent:"$AGENT_JAR"=destfile="$EXEC_FILE" -cp "$OUT_DIR:$CLASSPATH" io.epoch.VectorTestMain
+java --add-opens java.base/jdk.internal.misc=ALL-UNNAMED -javaagent:"$AGENT_JAR"=destfile="$EXEC_FILE" -cp "$OUT_DIR:$CLASSPATH" io.epoch.VectorTestMain
 
 java -jar "$CLI_JAR" report "$EXEC_FILE" \
   --classfiles "$OUT_DIR" \

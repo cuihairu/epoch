@@ -55,4 +55,39 @@ private:
     aeron_subscription_t *subscription_ = nullptr;
 };
 
+namespace detail {
+
+struct AeronHooks {
+    int (*context_init)(aeron_context_t **);
+    int (*context_set_dir)(aeron_context_t *, const char *);
+    int (*init)(aeron_t **, aeron_context_t *);
+    int (*start)(aeron_t *);
+    int (*async_add_publication)(aeron_async_add_publication_t **, aeron_t *, const char *, int32_t);
+    int (*async_add_publication_poll)(aeron_publication_t **, aeron_async_add_publication_t *);
+    int (*async_add_subscription)(aeron_async_add_subscription_t **, aeron_t *, const char *, int32_t,
+                                  aeron_on_available_image_t, void *, aeron_on_unavailable_image_t, void *);
+    int (*async_add_subscription_poll)(aeron_subscription_t **, aeron_async_add_subscription_t *);
+    int64_t (*publication_offer)(aeron_publication_t *, const uint8_t *, size_t,
+                                 aeron_reserved_value_supplier_t, void *);
+    int (*subscription_poll)(aeron_subscription_t *, aeron_fragment_handler_t, void *, size_t);
+    int (*publication_close)(aeron_publication_t *, aeron_notification_t, void *);
+    int (*subscription_close)(aeron_subscription_t *, aeron_notification_t, void *);
+    int (*close)(aeron_t *);
+    int (*context_close)(aeron_context_t *);
+    const char *(*errmsg)();
+};
+
+AeronHooks &aeron_hooks();
+
+} // namespace detail
+
+#ifdef EPOCH_TESTING
+namespace test {
+
+detail::AeronHooks &aeron_hooks();
+void reset_aeron_hooks();
+
+} // namespace test
+#endif
+
 } // namespace epoch
