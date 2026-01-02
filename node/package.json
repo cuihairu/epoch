@@ -4,9 +4,10 @@
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "packageManager": "pnpm@9.15.1",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && c8 --reporter=lcov --reporter=text node --test"
+    "test": "tsc -p tsconfig.json && c8 --reporter=lcov --reporter=text node --test"
   },
   "devDependencies": {
     "c8": "9.1.0",

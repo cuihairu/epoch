@@ -22,12 +22,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Enable pnpm
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.1 --activate
       - name: Test
         if: steps.detect.outputs.present == 'true'
         run: |
           cd node
-          npm install --no-package-lock
-          npm test
+          pnpm install --frozen-lockfile
+          pnpm test
       - name: Upload coverage
         if: steps.detect.outputs.present == 'true'
         uses: codecov/codecov-action@v4
