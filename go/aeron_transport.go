@@ -36,12 +36,78 @@ type AeronStats struct {
 
 type AeronTransport struct {
 	config AeronConfig
-	handle *C.epoch_aeron_transport_t
+	handle aeronHandle
 	closed bool
 }
 
 const aeronFrameLength = 56
 const aeronFrameVersion = 1
+
+type aeronHandle = unsafe.Pointer
+
+var (
+	aeronOpen = func(config AeronConfig, errBuf []byte) aeronHandle {
+		cChannel := C.CString(config.Channel)
+		defer C.free(unsafe.Pointer(cChannel))
+		var cDir *C.char
+		if config.AeronDirectory != "" {
+			cDir = C.CString(config.AeronDirectory)
+			defer C.free(unsafe.Pointer(cDir))
+		}
+		cConfig := C.epoch_aeron_config_t{
+			channel:            cChannel,
+			stream_id:          C.int32_t(config.StreamID),
+			aeron_directory:    cDir,
+			fragment_limit:     C.int32_t(config.FragmentLimit),
+			offer_max_attempts: C.int32_t(config.OfferMaxAttempts),
+		}
+		handle := C.epoch_aeron_open(
+			&cConfig,
+			(*C.char)(unsafe.Pointer(&errBuf[0])),
+			C.size_t(len(errBuf)),
+		)
+		return unsafe.Pointer(handle)
+	}
+	aeronSend = func(handle aeronHandle, frame []byte, errBuf []byte) int {
+		return int(C.epoch_aeron_send(
+			(*C.epoch_aeron_transport_t)(handle),
+			(*C.uint8_t)(unsafe.Pointer(&frame[0])),
+			C.size_t(len(frame)),
+			(*C.char)(unsafe.Pointer(&errBuf[0])),
+			C.size_t(len(errBuf)),
+		))
+	}
+	aeronPoll = func(handle aeronHandle, frameBuf []byte, max int, errBuf []byte) (int, int) {
+		var count C.size_t
+		result := C.epoch_aeron_poll(
+			(*C.epoch_aeron_transport_t)(handle),
+			(*C.uint8_t)(unsafe.Pointer(&frameBuf[0])),
+			C.size_t(max),
+			&count,
+			(*C.char)(unsafe.Pointer(&errBuf[0])),
+			C.size_t(len(errBuf)),
+		)
+		return int(result), int(count)
+	}
+	aeronStats = func(handle aeronHandle, out *AeronStats) int {
+		var stats C.epoch_aeron_stats_t
+		if C.epoch_aeron_stats((*C.epoch_aeron_transport_t)(handle), &stats) < 0 {
+			return -1
+		}
+		out.SentCount = int64(stats.sent_count)
+		out.ReceivedCount = int64(stats.received_count)
+		out.OfferBackPressure = int64(stats.offer_back_pressure)
+		out.OfferNotConnected = int64(stats.offer_not_connected)
+		out.OfferAdminAction = int64(stats.offer_admin_action)
+		out.OfferClosed = int64(stats.offer_closed)
+		out.OfferMaxPosition = int64(stats.offer_max_position)
+		out.OfferFailed = int64(stats.offer_failed)
+		return 0
+	}
+	aeronClose = func(handle aeronHandle) {
+		C.epoch_aeron_close((*C.epoch_aeron_transport_t)(handle))
+	}
+)
 
 func encodeAeronFrame(message Message) ([]byte, error) {
 	buffer := make([]byte, aeronFrameLength)
@@ -75,26 +141,8 @@ func decodeAeronFrame(buffer []byte) (Message, error) {
 }
 
 func NewAeronTransport(config AeronConfig) *AeronTransport {
-	cChannel := C.CString(config.Channel)
-	defer C.free(unsafe.Pointer(cChannel))
-	var cDir *C.char
-	if config.AeronDirectory != "" {
-		cDir = C.CString(config.AeronDirectory)
-		defer C.free(unsafe.Pointer(cDir))
-	}
-	cConfig := C.epoch_aeron_config_t{
-		channel:            cChannel,
-		stream_id:          C.int32_t(config.StreamID),
-		aeron_directory:    cDir,
-		fragment_limit:     C.int32_t(config.FragmentLimit),
-		offer_max_attempts: C.int32_t(config.OfferMaxAttempts),
-	}
 	errBuf := make([]byte, 256)
-	handle := C.epoch_aeron_open(
-		&cConfig,
-		(*C.char)(unsafe.Pointer(&errBuf[0])),
-		C.size_t(len(errBuf)),
-	)
+	handle := aeronOpen(config, errBuf)
 	if handle == nil {
 		panic(fmt.Errorf("aeron open failed: %s", trimCString(errBuf)))
 	}
@@ -110,13 +158,7 @@ func (t *AeronTransport) Send(message Message) {
 		panic(err)
 	}
 	errBuf := make([]byte, 256)
-	result := C.epoch_aeron_send(
-		t.handle,
-		(*C.uint8_t)(unsafe.Pointer(&frame[0])),
-		C.size_t(len(frame)),
-		(*C.char)(unsafe.Pointer(&errBuf[0])),
-		C.size_t(len(errBuf)),
-	)
+	result := aeronSend(t.handle, frame, errBuf)
 	if result < 0 {
 		panic(fmt.Errorf("aeron send failed: %s", trimCString(errBuf)))
 	}
@@ -128,20 +170,12 @@ func (t *AeronTransport) Poll(max int) []Message {
 	}
 	frameBuf := make([]byte, max*aeronFrameLength)
 	errBuf := make([]byte, 256)
-	var count C.size_t
-	result := C.epoch_aeron_poll(
-		t.handle,
-		(*C.uint8_t)(unsafe.Pointer(&frameBuf[0])),
-		C.size_t(max),
-		&count,
-		(*C.char)(unsafe.Pointer(&errBuf[0])),
-		C.size_t(len(errBuf)),
-	)
+	result, count := aeronPoll(t.handle, frameBuf, max, errBuf)
 	if result < 0 {
 		panic(fmt.Errorf("aeron poll failed: %s", trimCString(errBuf)))
 	}
-	out := make([]Message, 0, int(count))
-	for i := 0; i < int(count); i++ {
+	out := make([]Message, 0, count)
+	for i := 0; i < count; i++ {
 		offset := i * aeronFrameLength
 		message, err := decodeAeronFrame(frameBuf[offset : offset+aeronFrameLength])
 		if err != nil {
@@ -158,7 +192,7 @@ func (t *AeronTransport) Close() {
 	}
 	t.closed = true
 	if t.handle != nil {
-		C.epoch_aeron_close(t.handle)
+		aeronClose(t.handle)
 		t.handle = nil
 	}
 }
@@ -167,20 +201,11 @@ func (t *AeronTransport) Stats() AeronStats {
 	if t.handle == nil {
 		return AeronStats{}
 	}
-	var stats C.epoch_aeron_stats_t
-	if C.epoch_aeron_stats(t.handle, &stats) < 0 {
+	var stats AeronStats
+	if aeronStats(t.handle, &stats) < 0 {
 		return AeronStats{}
 	}
-	return AeronStats{
-		SentCount:         int64(stats.sent_count),
-		ReceivedCount:     int64(stats.received_count),
-		OfferBackPressure: int64(stats.offer_back_pressure),
-		OfferNotConnected: int64(stats.offer_not_connected),
-		OfferAdminAction:  int64(stats.offer_admin_action),
-		OfferClosed:       int64(stats.offer_closed),
-		OfferMaxPosition:  int64(stats.offer_max_position),
-		OfferFailed:       int64(stats.offer_failed),
-	}
+	return stats
 }
 
 func trimCString(buffer []byte) string {

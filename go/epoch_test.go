@@ -106,12 +106,12 @@ func TestProcessMessagesEmpty(t *testing.T) {
 }
 
 func TestProcessMessagesOrdering(t *testing.T) {
-		messages := []Message{
-			{Epoch: 2, ChannelID: 2, SourceID: 1, SourceSeq: 2, SchemaID: 100, Qos: 0, Payload: 5},
-			{Epoch: 1, ChannelID: 1, SourceID: 2, SourceSeq: 1, SchemaID: 100, Qos: 0, Payload: 2},
-			{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2, SchemaID: 100, Qos: 0, Payload: -1},
-			{Epoch: 3, ChannelID: 1, SourceID: 1, SourceSeq: 1, SchemaID: 100, Qos: 0, Payload: 4},
-		}
+	messages := []Message{
+		{Epoch: 2, ChannelID: 2, SourceID: 1, SourceSeq: 2, SchemaID: 100, Qos: 0, Payload: 5},
+		{Epoch: 1, ChannelID: 1, SourceID: 2, SourceSeq: 1, SchemaID: 100, Qos: 0, Payload: 2},
+		{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2, SchemaID: 100, Qos: 0, Payload: -1},
+		{Epoch: 3, ChannelID: 1, SourceID: 1, SourceSeq: 1, SchemaID: 100, Qos: 0, Payload: 4},
+	}
 	results := ProcessMessages(messages)
 	if len(results) != 3 {
 		t.Fatalf("expected 3 results, got %d", len(results))
@@ -138,14 +138,26 @@ func TestCompareMessage(t *testing.T) {
 	if compareMessage(base, Message{Epoch: 1, ChannelID: 2}) >= 0 {
 		t.Fatalf("expected channel compare")
 	}
+	if compareMessage(Message{Epoch: 1, ChannelID: 2}, base) <= 0 {
+		t.Fatalf("expected channel compare reverse")
+	}
 	if compareMessage(base, Message{Epoch: 1, ChannelID: 1, SourceID: 2}) >= 0 {
 		t.Fatalf("expected source compare")
+	}
+	if compareMessage(Message{Epoch: 1, ChannelID: 1, SourceID: 2, Qos: 1}, base) <= 0 {
+		t.Fatalf("expected source compare reverse")
 	}
 	if compareMessage(base, Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2}) >= 0 {
 		t.Fatalf("expected seq compare")
 	}
+	if compareMessage(Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2, Qos: 1}, base) <= 0 {
+		t.Fatalf("expected seq compare reverse")
+	}
 	if compareMessage(base, Message{Epoch: 1, ChannelID: 1, Qos: 2}) <= 0 {
 		t.Fatalf("expected qos compare")
+	}
+	if compareMessage(Message{Epoch: 1, ChannelID: 1, Qos: 2}, base) >= 0 {
+		t.Fatalf("expected qos compare reverse")
 	}
 	if compareMessage(base, base) != 0 {
 		t.Fatalf("expected equality compare")
