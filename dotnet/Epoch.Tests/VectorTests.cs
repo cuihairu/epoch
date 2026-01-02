@@ -57,6 +57,71 @@ public class VectorTests
         }
     }
 
+    [Fact]
+    public void VersionMatchesExpected()
+    {
+        Assert.Equal("0.1.0", Version.Value);
+    }
+
+    [Fact]
+    public void Fnv1A64HexMatchesKnownValues()
+    {
+        Assert.Equal("c3c43df01be7b59c", Engine.Fnv1A64Hex("state:0"));
+        Assert.Equal("a430d84680aabd0b", Engine.Fnv1A64Hex("hello"));
+    }
+
+    [Fact]
+    public void ProcessMessagesEmpty()
+    {
+        var results = Engine.ProcessMessages(new List<Message>());
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public void ProcessMessagesOrdering()
+    {
+        var messages = new List<Message>
+        {
+            new(2, 2, 1, 2, 100, 5),
+            new(1, 1, 2, 1, 100, 2),
+            new(1, 1, 1, 2, 100, -1),
+            new(3, 1, 1, 1, 100, 4)
+        };
+
+        var results = Engine.ProcessMessages(messages);
+        Assert.Equal(3, results.Count);
+        Assert.Equal(1, results[0].Epoch);
+        Assert.Equal(1, results[0].State);
+        Assert.Equal("c3c43ef01be7b74f", results[0].Hash);
+        Assert.Equal(2, results[1].Epoch);
+        Assert.Equal(6, results[1].State);
+        Assert.Equal("c3c43bf01be7b236", results[1].Hash);
+        Assert.Equal(3, results[2].Epoch);
+        Assert.Equal(10, results[2].State);
+        Assert.Equal("8e2e70ff6abccccd", results[2].Hash);
+    }
+
+    [Fact]
+    public void InMemoryTransportPollsAndCloses()
+    {
+        var transport = new InMemoryTransport();
+        transport.Send(new Message(1, 1, 1, 1, 100, 1));
+        transport.Send(new Message(1, 1, 1, 2, 100, 2));
+        transport.Send(new Message(2, 1, 1, 3, 100, 3));
+
+        Assert.Empty(transport.Poll(0));
+        var first = transport.Poll(2);
+        Assert.Equal(2, first.Count);
+        Assert.Equal(1, first[0].Payload);
+        Assert.Equal(2, first[1].Payload);
+        var second = transport.Poll(5);
+        Assert.Single(second);
+        Assert.Equal(3, second[0].Payload);
+
+        transport.Close();
+        Assert.Empty(transport.Poll(1));
+    }
+
     private static string LocateVectorFile()
     {
         var current = Directory.GetCurrentDirectory();

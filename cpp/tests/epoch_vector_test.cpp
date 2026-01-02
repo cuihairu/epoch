@@ -1,4 +1,6 @@
 #include "epoch/engine.h"
+#include "epoch/epoch.h"
+#include "epoch/transport.h"
 
 #include <filesystem>
 #include <fstream>
@@ -82,6 +84,78 @@ void parse_vector_file(const std::filesystem::path &path,
 
 int main()
 {
+    if (std::string(epoch::version()) != "0.1.0")
+    {
+        return 1;
+    }
+    if (epoch::fnv1a64_hex("state:0") != "c3c43df01be7b59c")
+    {
+        return 1;
+    }
+    if (epoch::fnv1a64_hex("hello") != "a430d84680aabd0b")
+    {
+        return 1;
+    }
+    if (!epoch::process_messages({}).empty())
+    {
+        return 1;
+    }
+
+    std::vector<epoch::Message> sample_messages = {
+        {2, 2, 1, 2, 100, 5},
+        {1, 1, 2, 1, 100, 2},
+        {1, 1, 1, 2, 100, -1},
+        {3, 1, 1, 1, 100, 4},
+    };
+    auto sample_results = epoch::process_messages(sample_messages);
+    if (sample_results.size() != 3)
+    {
+        return 1;
+    }
+    if (sample_results[0].epoch != 1 || sample_results[0].state != 1 ||
+        sample_results[0].hash != "c3c43ef01be7b74f")
+    {
+        return 1;
+    }
+    if (sample_results[1].epoch != 2 || sample_results[1].state != 6 ||
+        sample_results[1].hash != "c3c43bf01be7b236")
+    {
+        return 1;
+    }
+    if (sample_results[2].epoch != 3 || sample_results[2].state != 10 ||
+        sample_results[2].hash != "8e2e70ff6abccccd")
+    {
+        return 1;
+    }
+
+    epoch::InMemoryTransport transport;
+    transport.send({1, 1, 1, 1, 100, 5});
+    transport.send({1, 1, 1, 2, 100, 7});
+    transport.send({2, 1, 1, 3, 100, 9});
+    if (!transport.poll(0).empty())
+    {
+        return 1;
+    }
+    auto first_batch = transport.poll(2);
+    if (first_batch.size() != 2)
+    {
+        return 1;
+    }
+    if (first_batch[0].payload != 5 || first_batch[1].payload != 7)
+    {
+        return 1;
+    }
+    auto second_batch = transport.poll(5);
+    if (second_batch.size() != 1 || second_batch[0].payload != 9)
+    {
+        return 1;
+    }
+    transport.close();
+    if (!transport.poll(1).empty())
+    {
+        return 1;
+    }
+
     std::vector<epoch::Message> messages;
     std::vector<Expected> expected;
 

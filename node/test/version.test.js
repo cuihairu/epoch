@@ -44,6 +44,49 @@ test("vector matches expected", () => {
   }
 });
 
+test("version matches expected", () => {
+  assert.equal(epoch.version(), "0.1.0");
+});
+
+test("fnv1a64Hex matches known vectors", () => {
+  assert.equal(epoch.fnv1a64Hex("state:0"), "c3c43df01be7b59c");
+  assert.equal(epoch.fnv1a64Hex("hello"), "a430d84680aabd0b");
+});
+
+test("processMessages handles empty input", () => {
+  assert.deepEqual(epoch.processMessages([]), []);
+});
+
+test("processMessages orders epochs and carries state", () => {
+  const messages = [
+    { epoch: 2, channelId: 2, sourceId: 1, sourceSeq: 2, schemaId: 100, payload: 5 },
+    { epoch: 1, channelId: 1, sourceId: 2, sourceSeq: 1, schemaId: 100, payload: 2 },
+    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 2, schemaId: 100, payload: -1 },
+    { epoch: 3, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 100, payload: 4 }
+  ];
+
+  const results = epoch.processMessages(messages);
+  assert.deepEqual(results, [
+    { epoch: 1, state: 1, hash: "c3c43ef01be7b74f" },
+    { epoch: 2, state: 6, hash: "c3c43bf01be7b236" },
+    { epoch: 3, state: 10, hash: "8e2e70ff6abccccd" }
+  ]);
+});
+
+test("InMemoryTransport polls and closes", () => {
+  const transport = new epoch.InMemoryTransport();
+  transport.send({ payload: 1 });
+  transport.send({ payload: 2 });
+  transport.send({ payload: 3 });
+
+  assert.deepEqual(transport.poll(0), []);
+  assert.deepEqual(transport.poll(2), [{ payload: 1 }, { payload: 2 }]);
+  assert.deepEqual(transport.poll(10), [{ payload: 3 }]);
+
+  transport.close();
+  assert.deepEqual(transport.poll(1), []);
+});
+
 function locateVectorFile() {
   let current = process.cwd();
   for (let i = 0; i < 6; i++) {
