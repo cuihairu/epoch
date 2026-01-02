@@ -9,6 +9,9 @@
     "build": "tsc -p tsconfig.json",
     "test": "tsc -p tsconfig.json && c8 --reporter=lcov --reporter=text node --test"
   },
+  "dependencies": {
+    "koffi": "2.15.0"
+  },
   "devDependencies": {
     "c8": "9.1.0",
     "@types/node": "22.13.1",

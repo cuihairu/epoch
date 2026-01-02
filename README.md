@@ -43,3 +43,9 @@ corepack enable
 pnpm install
 pnpm run docs:dev
 ```
+
+## Aeron 原生库
+```bash
+./native/build.sh
+```
+非 Java 语言默认从 `native/build` 加载 `epoch_aeron`，或通过 `EPOCH_AERON_LIBRARY` 指定路径。

@@ -70,6 +70,7 @@ node/dist/
 
 # Build outputs
 cppbuild/
+native/build/
 java/target/
 java/.cache/
 dotnet/bin/

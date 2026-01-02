@@ -1,6 +1,6 @@
-# Aeron 集成设计（规划）
+# Aeron 集成设计
 
-本节描述 Aeron 传输层的集成方式与边界，Java 端已提供最小可用实现，其余语言保持骨架。
+本节描述 Aeron 传输层的集成方式与边界，Java/C++ 端已提供最小可用实现，C#/Go/Node/Python 通过 `epoch_aeron` 原生库绑定接入。
 
 ## 集成边界
 - Runtime 只依赖 `Transport` 接口与协议语义
@@ -16,7 +16,7 @@
 1. 外置 Media Driver（推荐生产）
 2. Embedded Media Driver（开发/单机）
 
-当前实现默认使用外置 Media Driver，Java 支持 embedded 模式（仅开发/单机）。
+当前实现默认使用外置 Media Driver，Java 支持 embedded 模式（仅开发/单机）。C++ 端目前仅支持外置。
 
 ## 配置建议
 - `channel`: Aeron channel（ipc/udp）
@@ -52,13 +52,18 @@
 - Archive 录制/回放进度
 - Error Log / Exception 事件
 
-Java 端提供 `AeronTransport.stats()` 用于读取发送/接收/失败统计。
+Java 端提供 `AeronTransport.stats()` 用于读取发送/接收/失败统计，C++ 端提供 `stats()`。
 
 ## 多语言实现策略
 - Java：直接使用官方 Aeron 客户端
-- C++/C#/Go/Node/Python：
-  - 方案 A：基于 Aeron C 库绑定（推荐短期）
-  - 方案 B：原生实现 UDP 传输并遵循协议（长期）
+- C++：基于 Aeron C 客户端（git submodule）
+- C#/Go/Node/Python：基于 `native/` 的 `epoch_aeron` 绑定（Aeron C）
+
+## 原生库构建
+```
+./native/build.sh
+```
+默认输出在 `native/build`，可通过环境变量 `EPOCH_AERON_LIBRARY` 指定动态库路径。
 
 ## 交互流程（简版）
 ```
@@ -67,4 +72,4 @@ Client -> Aeron: Publication(channel, streamId)
 Server -> Aeron: Subscription(channel, streamId)
 ```
 
-> 当 Aeron 集成落地后，此文档将升级为可运行配置与脚手架指引。 
+> 当前提供最小可用实现，后续补充生产化配置与部署脚手架。 

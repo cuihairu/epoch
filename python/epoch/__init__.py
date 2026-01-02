@@ -5,7 +5,7 @@ from .actor_id import (
     default_actor_id_codec,
     encode_actor_id,
 )
-from .aeron_transport import AeronConfig, AeronTransport
+from .aeron_transport import AeronConfig, AeronStats, AeronTransport
 from .engine import EpochResult, Message, fnv1a64_hex, process_messages
 from .transport import InMemoryTransport, Transport
 
@@ -23,6 +23,7 @@ __all__ = [
     "Transport",
     "InMemoryTransport",
     "AeronConfig",
+    "AeronStats",
     "AeronTransport",
 ]
 

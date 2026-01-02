@@ -1,4 +1,5 @@
 import { decodeActorId, defaultActorIdCodec, encodeActorId } from "./actor-id";
+import { AeronNative, AeronStats, loadAeronNative } from "./aeron-native";
 
 export type Message = {
   epoch: number;
@@ -14,6 +15,8 @@ export type AeronConfig = {
   channel: string;
   streamId: number;
   aeronDirectory: string;
+  fragmentLimit?: number;
+  offerMaxAttempts?: number;
 };
 
 export function version(): string {
@@ -75,6 +78,40 @@ export function processMessages(messages: Message[]) {
   return results;
 }
 
+const AERON_FRAME_LENGTH = 56;
+const AERON_FRAME_VERSION = 1;
+
+export function encodeAeronFrame(message: Message) {
+  const buffer = Buffer.alloc(AERON_FRAME_LENGTH);
+  buffer.writeUInt8(AERON_FRAME_VERSION, 0);
+  buffer.writeUInt8(message.qos ?? 0, 1);
+  buffer.writeBigInt64LE(BigInt(message.epoch), 8);
+  buffer.writeBigInt64LE(BigInt(message.channelId), 16);
+  buffer.writeBigInt64LE(BigInt(message.sourceId), 24);
+  buffer.writeBigInt64LE(BigInt(message.sourceSeq), 32);
+  buffer.writeBigInt64LE(BigInt(message.schemaId), 40);
+  buffer.writeBigInt64LE(BigInt(message.payload), 48);
+  return buffer;
+}
+
+export function decodeAeronFrame(buffer: Buffer): Message {
+  if (buffer.length < AERON_FRAME_LENGTH) {
+    throw new Error("Aeron frame too short");
+  }
+  if (buffer.readUInt8(0) !== AERON_FRAME_VERSION) {
+    throw new Error("Unsupported Aeron frame version");
+  }
+  return {
+    epoch: Number(buffer.readBigInt64LE(8)),
+    channelId: Number(buffer.readBigInt64LE(16)),
+    sourceId: Number(buffer.readBigInt64LE(24)),
+    sourceSeq: Number(buffer.readBigInt64LE(32)),
+    schemaId: Number(buffer.readBigInt64LE(40)),
+    qos: buffer.readUInt8(1),
+    payload: Number(buffer.readBigInt64LE(48))
+  };
+}
+
 export class InMemoryTransport {
   private queue: Message[] = [];
 
@@ -96,17 +133,55 @@ export class InMemoryTransport {
 }
 
 export class AeronTransport {
-  constructor(public readonly config: AeronConfig) {}
+  private readonly native: AeronNative;
+  private readonly handle: unknown;
+  private closed = false;
 
-  send() {
-    throw new Error("Aeron transport not linked");
+  constructor(public readonly config: AeronConfig, native?: AeronNative) {
+    this.native = native ?? loadAeronNative();
+    this.handle = this.native.open(config);
   }
 
-  poll() {
-    throw new Error("Aeron transport not linked");
+  send(message: Message) {
+    if (this.closed) {
+      throw new Error("Aeron transport closed");
+    }
+    const frame = encodeAeronFrame(message);
+    this.native.send(this.handle, frame);
   }
 
-  close() {}
+  poll(max: number) {
+    if (this.closed || max <= 0) {
+      return [];
+    }
+    const frames = this.native.poll(this.handle, max);
+    return frames.map(decodeAeronFrame);
+  }
+
+  stats(): AeronStats {
+    if (this.closed) {
+      return {
+        sentCount: 0,
+        receivedCount: 0,
+        offerBackPressure: 0,
+        offerNotConnected: 0,
+        offerAdminAction: 0,
+        offerClosed: 0,
+        offerMaxPosition: 0,
+        offerFailed: 0
+      };
+    }
+    return this.native.stats(this.handle);
+  }
+
+  close() {
+    if (this.closed) {
+      return;
+    }
+    this.closed = true;
+    this.native.close(this.handle);
+  }
 }
 
 export { defaultActorIdCodec, encodeActorId, decodeActorId };
+export type { AeronStats } from "./aeron-native";
