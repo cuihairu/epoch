@@ -7,6 +7,11 @@ coverage:
       default:
         target: 0
 
+fixes:
+  - "github.com/cuihairu/epoch/::"
+  - "/home/runner/work/epoch/epoch/::"
+  - "/Users/cui/Workspaces/epoch/::"
+
 flags:
   cpp:
     paths:
