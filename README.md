@@ -39,6 +39,7 @@
 
 ## 本地预览
 ```bash
-npm install
-npm run docs:dev
+corepack enable
+pnpm install
+pnpm run docs:dev
 ```

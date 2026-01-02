@@ -5,6 +5,7 @@
     "docs:dev": "vuepress dev docs",
     "docs:build": "vuepress build docs"
   },
+  "packageManager": "pnpm@9.15.1",
   "devDependencies": {
     "@vuepress/theme-default": "2.0.0-rc.7",
     "vuepress": "2.0.0-rc.7"
