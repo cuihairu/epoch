@@ -71,6 +71,7 @@ node/dist/
 # Build outputs
 cppbuild/
 java/target/
+java/.cache/
 dotnet/bin/
 dotnet/obj/
 dotnet/**/bin/

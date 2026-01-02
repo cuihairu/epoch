@@ -10,6 +10,7 @@ AGENT_JAR="$CACHE_DIR/jacocoagent.jar"
 CLI_JAR="$CACHE_DIR/jacococli.jar"
 EXEC_FILE="$ROOT_DIR/target/jacoco.exec"
 XML_FILE="$ROOT_DIR/target/jacoco.xml"
+CLASSPATH="$("$ROOT_DIR/scripts/fetch-aeron.sh")"
 
 mkdir -p "$OUT_DIR" "$CACHE_DIR"
 
@@ -23,9 +24,9 @@ fi
 
 find "$ROOT_DIR/src/main/java" "$ROOT_DIR/src/test/java" -name "*.java" > "$LIST_FILE"
 
-javac --release 17 -d "$OUT_DIR" @"$LIST_FILE"
+javac --release 17 -cp "$CLASSPATH" -d "$OUT_DIR" @"$LIST_FILE"
 
-java -javaagent:"$AGENT_JAR"=destfile="$EXEC_FILE" -cp "$OUT_DIR" io.epoch.VectorTestMain
+java -javaagent:"$AGENT_JAR"=destfile="$EXEC_FILE" -cp "$OUT_DIR:$CLASSPATH" io.epoch.VectorTestMain
 
 java -jar "$CLI_JAR" report "$EXEC_FILE" \
   --classfiles "$OUT_DIR" \

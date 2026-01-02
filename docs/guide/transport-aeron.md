@@ -1,6 +1,6 @@
 # Aeron 集成设计（规划）
 
-本节描述 Aeron 传输层的集成方式与边界，当前仅为设计规范与接口规划。
+本节描述 Aeron 传输层的集成方式与边界，Java 端已提供最小可用实现，其余语言保持骨架。
 
 ## 集成边界
 - Runtime 只依赖 `Transport` 接口与协议语义
@@ -16,6 +16,8 @@
 1. 外置 Media Driver（推荐生产）
 2. Embedded Media Driver（开发/单机）
 
+当前实现默认使用外置 Media Driver。
+
 ## 配置建议
 - `channel`: Aeron channel（ipc/udp）
 - `streamId`: stream 标识
@@ -25,6 +27,18 @@
 - `mtuLength`: MTU
 - `archiveEnabled`: 是否启用回放
 - `aeronDirectory`: driver 目录
+
+## 消息帧格式（v1）
+固定长度 56 bytes，偏移如下：
+- `0`: version (u8)
+- `1`: qos (u8)
+- `2-7`: reserved
+- `8`: epoch (i64)
+- `16`: channelId (i64)
+- `24`: sourceId (i64)
+- `32`: sourceSeq (i64)
+- `40`: schemaId (i64)
+- `48`: payload (i64)
 
 ## Debug / 观测出口
 建议透出以下信息（与 Aeron counters 对齐）：
