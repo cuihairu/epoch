@@ -28,6 +28,13 @@ jobs:
           cd node
           npm install --no-package-lock
           npm test
+      - name: Upload coverage
+        if: steps.detect.outputs.present == 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          files: node/coverage/lcov.info
+          flags: node
+          fail_ci_if_error: false
       - name: Skip (no Node project yet)
         if: steps.detect.outputs.present != 'true'
         run: echo "No Node sources yet."

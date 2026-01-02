@@ -26,7 +26,17 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         run: |
           cd python
-          python -m unittest discover -s tests
+          python -m pip install --upgrade pip
+          python -m pip install coverage
+          coverage run -m unittest discover -s tests
+          coverage xml -o coverage.xml
+      - name: Upload coverage
+        if: steps.detect.outputs.present == 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          files: python/coverage.xml
+          flags: python
+          fail_ci_if_error: false
       - name: Skip (no Python project yet)
         if: steps.detect.outputs.present != 'true'
         run: echo "No Python sources yet."

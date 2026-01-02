@@ -23,8 +23,18 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Coverage (script)
+        if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-coverage.sh') != ''
+        run: java/scripts/run-coverage.sh
+      - name: Upload coverage
+        if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-coverage.sh') != ''
+        uses: codecov/codecov-action@v4
+        with:
+          files: java/target/jacoco.xml
+          flags: java
+          fail_ci_if_error: false
       - name: Test (script)
-        if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-tests.sh') != ''
+        if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-coverage.sh') == '' && hashFiles('java/scripts/run-tests.sh') != ''
         run: java/scripts/run-tests.sh
       - name: Build (Gradle)
         if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-tests.sh') == '' && hashFiles('java/gradlew') != ''

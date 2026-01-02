@@ -14,7 +14,9 @@ jobs:
           node-version: "22"
           cache: "pnpm"
       - name: Enable pnpm
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.1 --activate
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Build

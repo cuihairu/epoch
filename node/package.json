@@ -4,6 +4,9 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "node --test"
+    "test": "c8 --reporter=lcov --reporter=text node --test"
+  },
+  "devDependencies": {
+    "c8": "9.1.0"
   }
 }

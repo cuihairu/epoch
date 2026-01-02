@@ -20,11 +20,24 @@ jobs:
       - name: Build
         if: steps.detect.outputs.present == 'true'
         run: |
-          cmake -S cpp -B cppbuild
+          cmake -S cpp -B cppbuild -DEPOCH_COVERAGE=ON
           cmake --build cppbuild
       - name: Test
         if: steps.detect.outputs.present == 'true'
         run: ctest --test-dir cppbuild --output-on-failure
+      - name: Coverage
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install gcovr
+          gcovr -r . --object-directory cppbuild --xml-pretty -o cpp/coverage.xml --filter cpp
+      - name: Upload coverage
+        if: steps.detect.outputs.present == 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          files: cpp/coverage.xml
+          flags: cpp
+          fail_ci_if_error: false
       - name: Skip (no C++ project yet)
         if: steps.detect.outputs.present != 'true'
         run: echo "No C++ sources yet."

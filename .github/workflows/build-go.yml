@@ -26,7 +26,14 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         run: |
           cd go
-          go test ./...
+          go test ./... -coverprofile=coverage.out
+      - name: Upload coverage
+        if: steps.detect.outputs.present == 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          files: go/coverage.out
+          flags: go
+          fail_ci_if_error: false
       - name: Skip (no Go project yet)
         if: steps.detect.outputs.present != 'true'
         run: echo "No Go sources yet."

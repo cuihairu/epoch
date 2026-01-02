@@ -1,0 +1,28 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 0
+    patch:
+      default:
+        target: 0
+
+flags:
+  cpp:
+    paths:
+      - cpp/
+  java:
+    paths:
+      - java/
+  dotnet:
+    paths:
+      - dotnet/
+  go:
+    paths:
+      - go/
+  node:
+    paths:
+      - node/
+  python:
+    paths:
+      - python/

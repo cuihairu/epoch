@@ -32,7 +32,14 @@ jobs:
           fi
       - name: Test
         if: steps.detect.outputs.present == 'true' && hashFiles('dotnet/Epoch.Tests/Epoch.Tests.csproj') != ''
-        run: dotnet run --project dotnet/Epoch.Tests/Epoch.Tests.csproj
+        run: dotnet test dotnet/Epoch.Tests/Epoch.Tests.csproj --collect:"XPlat Code Coverage"
+      - name: Upload coverage
+        if: steps.detect.outputs.present == 'true' && hashFiles('dotnet/Epoch.Tests/Epoch.Tests.csproj') != ''
+        uses: codecov/codecov-action@v4
+        with:
+          files: dotnet/Epoch.Tests/TestResults/**/coverage.cobertura.xml
+          flags: dotnet
+          fail_ci_if_error: false
       - name: Skip (no .NET project yet)
         if: steps.detect.outputs.present != 'true'
         run: echo "No .NET sources yet."

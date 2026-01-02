@@ -62,6 +62,7 @@ node_modules/
 docs/.vuepress/dist/
 docs/.vuepress/cache/
 docs/.vuepress/temp/
+node/coverage/
 
 # Build outputs
 cppbuild/
@@ -70,6 +71,7 @@ dotnet/bin/
 dotnet/obj/
 dotnet/**/bin/
 dotnet/**/obj/
+dotnet/**/TestResults/
 python/__pycache__/
 python/**/__pycache__/
 python/.pytest_cache/
@@ -79,3 +81,8 @@ python/dist/
 python/*.egg-info/
 python/**/*.pyc
 .gocache/
+go/coverage.out
+cpp/coverage.xml
+java/target/jacoco.exec
+java/target/jacoco.xml
+python/coverage.xml
