@@ -2,6 +2,8 @@ function version() {
   return "0.1.0";
 }
 
+const actorId = require("./actor-id");
+
 const FNV_OFFSET_BASIS = 0xcbf29ce484222325n;
 const FNV_PRIME = 0x100000001b3n;
 const FNV_MASK = 0xffffffffffffffffn;
@@ -80,5 +82,8 @@ module.exports = {
   version,
   fnv1a64Hex,
   processMessages,
-  InMemoryTransport
+  InMemoryTransport,
+  defaultActorIdCodec: actorId.defaultActorIdCodec,
+  encodeActorId: actorId.encodeActorId,
+  decodeActorId: actorId.decodeActorId
 };

@@ -15,6 +15,14 @@
 - `schemaId`：消息结构版本
 - `payload`：业务数据
 
+## ActorId 约定（默认规则）
+- `sourceId` 默认等于 `actorId`
+- `actorId` 为 64-bit 数值，可按规则解析
+- 默认布局（高位到低位）：
+  - `region(10) | server(12) | processType(6) | processIndex(10) | actorIndex(26)`
+- 解析规则可替换：实现 `ActorIdCodec`（encode/decode/name）即可切换
+- Node.js 需要用 `BigInt` 保存完整 64-bit
+
 ## 传输实现原则
 - 各语言独立实现 Transport，不依赖 C/C++ 绑定
 - 可复用 Aeron 或自研 UDP 传输

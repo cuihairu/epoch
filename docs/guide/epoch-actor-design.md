@@ -33,6 +33,10 @@
   2. Epoch 内输入封闭
   3. 无同步等待
   4. 状态只在 Epoch 边界对外可见
+- ActorId:
+  - 默认用 64-bit 数值标识，`sourceId == actorId`
+  - 规则可配置：通过 `ActorIdCodec` 定义 encode/decode
+  - 默认布局：`region | server | processType | processIndex | actorIndex`
 
 #### 3. Channel
 - 提供消息传递接口

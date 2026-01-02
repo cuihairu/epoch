@@ -87,6 +87,13 @@ test("InMemoryTransport polls and closes", () => {
   assert.deepEqual(transport.poll(1), []);
 });
 
+test("actorId default codec", () => {
+  const parts = { region: 1, server: 2, processType: 3, processIndex: 4, actorIndex: 5 };
+  const value = epoch.encodeActorId(parts);
+  const decoded = epoch.decodeActorId(value);
+  assert.deepEqual(decoded, parts);
+});
+
 function locateVectorFile() {
   let current = process.cwd();
   for (let i = 0; i < 6; i++) {

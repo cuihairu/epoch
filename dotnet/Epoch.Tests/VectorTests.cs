@@ -102,6 +102,19 @@ public class VectorTests
     }
 
     [Fact]
+    public void ActorIdCodecDefault()
+    {
+        var parts = new ActorIdParts(1, 2, 3, 4, 5);
+        var value = ActorId.Encode(parts);
+        var decoded = ActorId.Decode(value);
+        Assert.Equal(parts.Region, decoded.Region);
+        Assert.Equal(parts.Server, decoded.Server);
+        Assert.Equal(parts.ProcessType, decoded.ProcessType);
+        Assert.Equal(parts.ProcessIndex, decoded.ProcessIndex);
+        Assert.Equal(parts.ActorIndex, decoded.ActorIndex);
+    }
+
+    [Fact]
     public void InMemoryTransportPollsAndCloses()
     {
         var transport = new InMemoryTransport();

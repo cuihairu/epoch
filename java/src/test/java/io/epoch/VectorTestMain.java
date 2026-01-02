@@ -11,6 +11,10 @@ public final class VectorTestMain {
         ensure("c3c43df01be7b59c".equals(Engine.fnv1a64Hex("state:0")), "Hash mismatch");
         ensure("a430d84680aabd0b".equals(Engine.fnv1a64Hex("hello")), "Hash mismatch");
         ensure(Engine.processMessages(new ArrayList<>()).isEmpty(), "Empty process failed");
+        ActorId.Parts actorParts = new ActorId.Parts(1, 2, 3, 4, 5);
+        long actorId = ActorId.encode(actorParts);
+        ActorId.Parts decoded = ActorId.decode(actorId);
+        ensure(actorParts.equals(decoded), "ActorId codec mismatch");
 
         List<Engine.Message> sampleMessages = new ArrayList<>();
         sampleMessages.add(new Engine.Message(2, 2, 1, 2, 100, 5));

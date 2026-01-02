@@ -162,6 +162,24 @@ func TestInMemoryTransport(t *testing.T) {
 	}
 }
 
+func TestActorIdCodecDefault(t *testing.T) {
+	parts := ActorIdParts{
+		Region:       1,
+		Server:       2,
+		ProcessType:  3,
+		ProcessIndex: 4,
+		ActorIndex:   5,
+	}
+	value, err := EncodeActorId(parts)
+	if err != nil {
+		t.Fatalf("encode actor id: %v", err)
+	}
+	decoded := DecodeActorId(value)
+	if decoded != parts {
+		t.Fatalf("actor id mismatch")
+	}
+}
+
 func locateVectorFile(t *testing.T) string {
 	current, err := os.Getwd()
 	if err != nil {

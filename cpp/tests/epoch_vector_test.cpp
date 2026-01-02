@@ -1,3 +1,4 @@
+#include "epoch/actor_id.h"
 #include "epoch/engine.h"
 #include "epoch/epoch.h"
 #include "epoch/transport.h"
@@ -93,6 +94,15 @@ int main()
         return 1;
     }
     if (epoch::fnv1a64_hex("hello") != "a430d84680aabd0b")
+    {
+        return 1;
+    }
+    epoch::ActorIdParts parts{1, 2, 3, 4, 5};
+    auto actor_id = epoch::encode_actor_id(parts);
+    auto decoded = epoch::decode_actor_id(actor_id);
+    if (decoded.region != parts.region || decoded.server != parts.server ||
+        decoded.process_type != parts.process_type || decoded.process_index != parts.process_index ||
+        decoded.actor_index != parts.actor_index)
     {
         return 1;
     }

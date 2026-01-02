@@ -75,6 +75,12 @@ class VectorTest(unittest.TestCase):
         transport.close()
         self.assertEqual(transport.poll(1), [])
 
+    def test_actor_id_codec_default(self):
+        parts = epoch.ActorIdParts(1, 2, 3, 4, 5)
+        value = epoch.encode_actor_id(parts)
+        decoded = epoch.decode_actor_id(value)
+        self.assertEqual(decoded, parts)
+
 
 def locate_vector_file() -> str:
     current = os.path.abspath(".")

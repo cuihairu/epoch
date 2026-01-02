@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(epoch_cpp VERSION 0.1.0 LANGUAGES CXX)
 
-add_library(epoch_cpp src/epoch.cpp src/engine.cpp)
+add_library(epoch_cpp src/epoch.cpp src/engine.cpp src/actor_id.cpp)
 
 target_include_directories(epoch_cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
