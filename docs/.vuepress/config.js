@@ -1,3 +1,4 @@
+import { viteBundler } from "@vuepress/bundler-vite";
 import { defaultTheme } from "@vuepress/theme-default";
 
 export default {
@@ -5,6 +6,7 @@ export default {
   title: "Epoch",
   description: "Epoch Actor Runtime 设计与文档",
   base: "/epoch/",
+  bundler: viteBundler(),
   theme: defaultTheme({
     navbar: [
       { text: "文档", link: "/" },
@@ -14,29 +16,6 @@ export default {
       { text: "语言实现", link: "/guide/languages.html" },
       { text: "GitHub", link: "https://github.com/cuihairu/epoch" }
     ],
-    sidebar: {
-      "/guide/": [
-        {
-          text: "概览",
-          children: ["/guide/", "/guide/concepts", "/guide/behavior", "/guide/protocol"]
-        },
-        {
-          text: "设计文档",
-          children: ["/guide/epoch-actor-design"]
-        },
-        {
-          text: "语言实现",
-          children: [
-            "/guide/languages",
-            "/guide/languages/cpp",
-            "/guide/languages/java",
-            "/guide/languages/dotnet",
-            "/guide/languages/go",
-            "/guide/languages/node",
-            "/guide/languages/python"
-          ]
-        }
-      ]
-    }
+    sidebar: false
   })
 };
