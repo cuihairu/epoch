@@ -29,6 +29,9 @@
 - 可复用 Aeron 或自研 UDP 传输
 - 必须保证可重放与一致性验证
 
+## Aeron 集成
+- 设计说明见：`docs/guide/transport-aeron.md`
+
 ## 测试向量
 - 必须提供“输入明细 + 期望 stateHash”的测试向量
 - 所有语言实现都需复用该向量
