@@ -12,7 +12,7 @@ jobs:
       - name: Detect .NET project
         id: detect
         run: |
-          if ls dotnet/*.sln dotnet/*.csproj >/dev/null 2>&1; then
+          if ls dotnet/*.sln >/dev/null 2>&1 || ls dotnet/*.csproj >/dev/null 2>&1; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"

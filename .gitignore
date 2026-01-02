@@ -50,6 +50,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+!go/go.mod
+!go/go.sum
 
 # debug information files
 *.dwo
