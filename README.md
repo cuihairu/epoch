@@ -38,7 +38,7 @@
 - C++: `epoch-cpp-<os>.tar.gz` (包含 `libepoch_cpp.a`/`epoch_cpp.lib` + headers)
 - Java: `epoch-java.tar.gz` (jar)
 - .NET: `epoch-dotnet.tar.gz` (nupkg)
-- Go: `epoch-go.tar.gz` (静态库)
+- Go: `epoch-go-<os>-<arch>.tar.gz` (静态库)
 - Node.js: `epoch-node.tar.gz` (npm pack)
 - Python: `epoch-python.tar.gz` (sdist + wheel)
 

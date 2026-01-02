@@ -2,7 +2,8 @@ package epoch
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../native/include
-#cgo LDFLAGS: -L${SRCDIR}/../native/build -lepoch_aeron
+#cgo !windows LDFLAGS: -L${SRCDIR}/../native/build -lepoch_aeron
+#cgo windows LDFLAGS: -L${SRCDIR}/../native/build/Release -lepoch_aeron
 #include "epoch_aeron.h"
 #include <stdlib.h>
 */

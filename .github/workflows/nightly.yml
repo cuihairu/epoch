@@ -163,7 +163,10 @@ jobs:
           path: epoch-dotnet.tar.gz
 
   go:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -173,22 +176,28 @@ jobs:
         with:
           go-version: "1.24.x"
       - name: Build native
+        shell: bash
         run: |
-          cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
-          cmake --build native/build
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cmake -S native -B native/build
+            cmake --build native/build --config Release
+          else
+            cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+            cmake --build native/build
+          fi
       - name: Build
         shell: bash
         run: |
           cd go
-          CGO_ENABLED=1 go build -o ../epoch-go-linux-amd64.a
+          CGO_ENABLED=1 go build -o ../epoch-go-$(go env GOOS)-$(go env GOARCH).a
       - name: Package
         shell: bash
         run: |
-          tar -czf epoch-go.tar.gz epoch-go-linux-amd64.a
+          tar -czf epoch-go-$(go env GOOS)-$(go env GOARCH).tar.gz epoch-go-$(go env GOOS)-$(go env GOARCH).a
       - uses: actions/upload-artifact@v4
         with:
-          name: epoch-go
-          path: epoch-go.tar.gz
+          name: epoch-go-${{ matrix.os }}
+          path: epoch-go-*.tar.gz
 
   node:
     runs-on: ubuntu-latest

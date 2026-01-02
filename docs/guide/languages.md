@@ -41,6 +41,6 @@
 - C++: `epoch-cpp-<os>.tar.gz`
 - Java: `epoch-java.tar.gz`
 - .NET: `epoch-dotnet.tar.gz`
-- Go: `epoch-go.tar.gz`
+- Go: `epoch-go-<os>-<arch>.tar.gz`
 - Node.js: `epoch-node.tar.gz`
 - Python: `epoch-python.tar.gz`
