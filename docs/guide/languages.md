@@ -31,3 +31,16 @@
 - 版本：Python 3.12
 - 目录：`/python`
 - 文档：`/guide/languages/python.html`
+
+## Nightly 产物
+每次主分支更新与每日定时会生成 nightly 产物，统一发布在 GitHub Releases：
+`https://github.com/cuihairu/epoch/releases/tag/nightly`
+
+产物示例（按语言）：
+- native: `epoch-native-<os>.tar.gz`
+- C++: `epoch-cpp-<os>.tar.gz`
+- Java: `epoch-java.tar.gz`
+- .NET: `epoch-dotnet.tar.gz`
+- Go: `epoch-go.tar.gz`
+- Node.js: `epoch-node.tar.gz`
+- Python: `epoch-python.tar.gz`

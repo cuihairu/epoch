@@ -29,6 +29,19 @@
 | ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white) | Node.js 22 | [![build-node](https://github.com/cuihairu/epoch/actions/workflows/build-node.yml/badge.svg)](https://github.com/cuihairu/epoch/actions/workflows/build-node.yml) | [![codecov](https://codecov.io/gh/cuihairu/epoch/branch/main/graph/badge.svg?flag=node)](https://codecov.io/gh/cuihairu/epoch) |
 | ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) | Python 3.12 | [![build-python](https://github.com/cuihairu/epoch/actions/workflows/build-python.yml/badge.svg)](https://github.com/cuihairu/epoch/actions/workflows/build-python.yml) | [![codecov](https://codecov.io/gh/cuihairu/epoch/branch/main/graph/badge.svg?flag=python)](https://codecov.io/gh/cuihairu/epoch) |
 
+## Nightly 构建
+每次主分支更新与每日定时会生成 nightly 产物，统一发布在 GitHub Releases：
+`https://github.com/cuihairu/epoch/releases/tag/nightly`
+
+产物示例（按语言）：
+- native: `epoch-native-<os>.tar.gz` (包含 `epoch_aeron` + 头文件)
+- C++: `epoch-cpp-<os>.tar.gz` (包含 `libepoch_cpp.a`/`epoch_cpp.lib` + headers)
+- Java: `epoch-java.tar.gz` (jar)
+- .NET: `epoch-dotnet.tar.gz` (nupkg)
+- Go: `epoch-go.tar.gz` (静态库)
+- Node.js: `epoch-node.tar.gz` (npm pack)
+- Python: `epoch-python.tar.gz` (sdist + wheel)
+
 ## 文档
 - 概念与设计：`docs/guide/concepts.md`
 - 行为与一致性：`docs/guide/behavior.md`
