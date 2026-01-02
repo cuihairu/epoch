@@ -7,6 +7,9 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: nightly-${{ github.ref }}
   cancel-in-progress: true
