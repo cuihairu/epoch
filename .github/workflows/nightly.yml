@@ -1,0 +1,255 @@
+name: nightly
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cmake -S native -B native/build
+          else
+            cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+          fi
+      - name: Build
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cmake --build native/build --config Release
+          else
+            cmake --build native/build
+          fi
+      - name: Package
+        shell: bash
+        run: |
+          os="$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')"
+          mkdir -p dist/native
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp native/build/Release/epoch_aeron.dll dist/native/
+            cp native/build/Release/epoch_aeron.lib dist/native/
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            cp native/build/libepoch_aeron.dylib dist/native/
+          else
+            cp native/build/libepoch_aeron.so dist/native/
+          fi
+          cp native/include/epoch_aeron.h dist/native/
+          tar -czf "epoch-native-${os}.tar.gz" -C dist/native .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epoch-native-${{ matrix.os }}
+          path: epoch-native-*.tar.gz
+
+  cpp:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cmake -S cpp -B cppbuild
+          else
+            cmake -S cpp -B cppbuild -DCMAKE_BUILD_TYPE=Release
+          fi
+      - name: Build
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cmake --build cppbuild --config Release
+          else
+            cmake --build cppbuild
+          fi
+      - name: Test
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            ctest --test-dir cppbuild -C Release --output-on-failure
+          else
+            ctest --test-dir cppbuild --output-on-failure
+          fi
+      - name: Package
+        shell: bash
+        run: |
+          os="$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')"
+          mkdir -p dist/cpp/include
+          cp -R cpp/include/epoch dist/cpp/include/
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp cppbuild/Release/epoch_cpp.lib dist/cpp/
+          else
+            cp cppbuild/libepoch_cpp.a dist/cpp/
+          fi
+          cp LICENSE dist/cpp/
+          tar -czf "epoch-cpp-${os}.tar.gz" -C dist/cpp .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epoch-cpp-${{ matrix.os }}
+          path: epoch-cpp-*.tar.gz
+
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build and test
+        shell: bash
+        run: |
+          ROOT_DIR="$(pwd)/java"
+          OUT_DIR="$ROOT_DIR/target/classes"
+          LIST_FILE="$ROOT_DIR/target/sources.txt"
+          CLASSPATH="$("$ROOT_DIR/scripts/fetch-aeron.sh")"
+          mkdir -p "$OUT_DIR"
+          find "$ROOT_DIR/src/main/java" "$ROOT_DIR/src/test/java" -name "*.java" > "$LIST_FILE"
+          javac --release 17 -cp "$CLASSPATH" -d "$OUT_DIR" @"$LIST_FILE"
+          java --add-opens java.base/jdk.internal.misc=ALL-UNNAMED -cp "$OUT_DIR:$CLASSPATH" io.epoch.VectorTestMain
+          jar --create --file "$ROOT_DIR/target/epoch-java.jar" -C "$OUT_DIR" .
+      - name: Package
+        shell: bash
+        run: |
+          tar -czf epoch-java.tar.gz -C java/target epoch-java.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epoch-java
+          path: epoch-java.tar.gz
+
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Test
+        run: dotnet test dotnet/Epoch.Tests/Epoch.Tests.csproj
+      - name: Pack
+        run: dotnet pack dotnet/Epoch.csproj -c Release -o dotnet/artifacts
+      - name: Package
+        shell: bash
+        run: |
+          tar -czf epoch-dotnet.tar.gz -C dotnet/artifacts .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epoch-dotnet
+          path: epoch-dotnet.tar.gz
+
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+      - name: Build native
+        run: |
+          cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build native/build
+      - name: Build
+        shell: bash
+        run: |
+          cd go
+          CGO_ENABLED=1 go build -o ../epoch-go-linux-amd64.a
+      - name: Package
+        shell: bash
+        run: |
+          tar -czf epoch-go.tar.gz epoch-go-linux-amd64.a
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epoch-go
+          path: epoch-go.tar.gz
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install and build
+        shell: bash
+        run: |
+          corepack enable
+          pnpm -C node install --no-frozen-lockfile
+          pnpm -C node run build
+          pnpm -C node pack --pack-destination node/dist
+      - name: Package
+        shell: bash
+        run: |
+          tar -czf epoch-node.tar.gz -C node/dist .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epoch-node
+          path: epoch-node.tar.gz
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        shell: bash
+        run: |
+          python -m venv python/.venv-nightly
+          source python/.venv-nightly/bin/activate
+          python -m pip install --upgrade pip build
+          cd python
+          python -m build
+      - name: Package
+        shell: bash
+        run: |
+          tar -czf epoch-python.tar.gz -C python/dist .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epoch-python
+          path: epoch-python.tar.gz
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [native, cpp, java, dotnet, go, node, python]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Create nightly release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: nightly
+          name: nightly
+          prerelease: true
+          allowUpdates: true
+          removeArtifacts: true
+          artifacts: dist/**/*
+          token: ${{ secrets.GITHUB_TOKEN }}
