@@ -37,6 +37,7 @@ jobs:
         if: steps.detect.outputs.present == 'true' && hashFiles('dotnet/Epoch.Tests/Epoch.Tests.csproj') != ''
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: dotnet/Epoch.Tests/TestResults/**/coverage.cobertura.xml
           flags: dotnet
           fail_ci_if_error: false

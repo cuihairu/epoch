@@ -34,6 +34,7 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: python/coverage.xml
           flags: python
           fail_ci_if_error: false

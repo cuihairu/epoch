@@ -30,6 +30,7 @@ jobs:
         if: steps.detect.outputs.present == 'true' && hashFiles('java/scripts/run-coverage.sh') != ''
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: java/target/jacoco.xml
           flags: java
           fail_ci_if_error: false
