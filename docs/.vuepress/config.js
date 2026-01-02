@@ -1,6 +1,6 @@
-const { defaultTheme } = require("@vuepress/theme-default");
+import { defaultTheme } from "@vuepress/theme-default";
 
-module.exports = {
+export default {
   lang: "zh-CN",
   title: "Epoch",
   description: "Epoch Actor Runtime 设计与文档",
