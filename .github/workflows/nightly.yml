@@ -20,6 +20,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,9 +37,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cmake --build native/build --config Release
+            cmake --build native/build --config Release --parallel 1
           else
-            cmake --build native/build
+            cmake --build native/build --parallel 2
           fi
       - name: Package
         shell: bash
@@ -167,6 +168,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -180,10 +182,10 @@ jobs:
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             cmake -S native -B native/build
-            cmake --build native/build --config Release
+            cmake --build native/build --config Release --parallel 1
           else
             cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
-            cmake --build native/build
+            cmake --build native/build --parallel 2
           fi
       - name: Build
         shell: bash

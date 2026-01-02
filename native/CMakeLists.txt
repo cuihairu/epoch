@@ -24,6 +24,13 @@ if (EXISTS ${AERON_CLIENT_DIR}/CMakeLists.txt)
     add_definitions(-DAERON_VERSION_PATCH=${AERON_VERSION_PATCH})
     add_definitions(-DAERON_VERSION_GITSHA="${AERON_VERSION_GITSHA}")
     set(AERON_INSTALL_TARGETS OFF CACHE BOOL "" FORCE)
+
+    # 为 Linux/Unix 系统设置 -fPIC,确保静态库可用于共享库
+    if (UNIX AND NOT APPLE)
+        set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    endif()
+
     add_subdirectory(${AERON_CLIENT_DIR} ${CMAKE_CURRENT_BINARY_DIR}/aeron-client)
 else()
     message(FATAL_ERROR "Aeron submodule not found. Run: git submodule update --init --recursive")
