@@ -23,7 +23,7 @@
 - 文档：`/guide/languages/go.html`
 
 ## Node.js
-- 版本：Node.js 20
+- 版本：Node.js 22
 - 目录：`/node`
 - 文档：`/guide/languages/node.html`
 

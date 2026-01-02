@@ -26,7 +26,7 @@
 | ![Java](https://img.shields.io/badge/Java-007396?logo=openjdk&logoColor=white) | Java 17 | [![build-java](https://github.com/cuihairu/epoch/actions/workflows/build-java.yml/badge.svg)](https://github.com/cuihairu/epoch/actions/workflows/build-java.yml) |
 | ![.NET](https://img.shields.io/badge/.NET-512BD4?logo=dotnet&logoColor=white) | .NET 8.0 | [![build-dotnet](https://github.com/cuihairu/epoch/actions/workflows/build-dotnet.yml/badge.svg)](https://github.com/cuihairu/epoch/actions/workflows/build-dotnet.yml) |
 | ![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white) | Go 1.24 | [![build-go](https://github.com/cuihairu/epoch/actions/workflows/build-go.yml/badge.svg)](https://github.com/cuihairu/epoch/actions/workflows/build-go.yml) |
-| ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white) | Node.js 20 | [![build-node](https://github.com/cuihairu/epoch/actions/workflows/build-node.yml/badge.svg)](https://github.com/cuihairu/epoch/actions/workflows/build-node.yml) |
+| ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white) | Node.js 22 | [![build-node](https://github.com/cuihairu/epoch/actions/workflows/build-node.yml/badge.svg)](https://github.com/cuihairu/epoch/actions/workflows/build-node.yml) |
 | ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) | Python 3.12 | [![build-python](https://github.com/cuihairu/epoch/actions/workflows/build-python.yml/badge.svg)](https://github.com/cuihairu/epoch/actions/workflows/build-python.yml) |
 
 ## 文档
