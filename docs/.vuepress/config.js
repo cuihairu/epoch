@@ -4,6 +4,7 @@ export default {
   lang: "zh-CN",
   title: "Epoch",
   description: "Epoch Actor Runtime 设计与文档",
+  base: "/epoch/",
   theme: defaultTheme({
     navbar: [
       { text: "文档", link: "/" },
