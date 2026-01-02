@@ -6,7 +6,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,22 +22,41 @@ jobs:
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Configure
+        if: steps.detect.outputs.present == 'true'
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            cmake -S cpp -B cppbuild -DEPOCH_COVERAGE=ON
+          else
+            cmake -S cpp -B cppbuild
+          fi
       - name: Build
         if: steps.detect.outputs.present == 'true'
+        shell: bash
         run: |
-          cmake -S cpp -B cppbuild -DEPOCH_COVERAGE=ON
-          cmake --build cppbuild
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cmake --build cppbuild --config Release
+          else
+            cmake --build cppbuild
+          fi
       - name: Test
         if: steps.detect.outputs.present == 'true'
-        run: ctest --test-dir cppbuild --output-on-failure
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            ctest --test-dir cppbuild -C Release --output-on-failure
+          else
+            ctest --test-dir cppbuild --output-on-failure
+          fi
       - name: Coverage
-        if: steps.detect.outputs.present == 'true'
+        if: steps.detect.outputs.present == 'true' && matrix.os == 'ubuntu-latest'
         run: |
           python -m pip install --upgrade pip
           python -m pip install gcovr
           gcovr -r . --object-directory cppbuild --xml-pretty -o cpp/coverage.xml --filter cpp
       - name: Upload coverage
-        if: steps.detect.outputs.present == 'true'
+        if: steps.detect.outputs.present == 'true' && matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
