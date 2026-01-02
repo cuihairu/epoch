@@ -7,7 +7,7 @@
   "packageManager": "pnpm@9.15.1",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json && c8 --reporter=lcov --reporter=text node --test"
+    "test": "tsc -p tsconfig.json && c8 --cwd .. --reporter=lcov --reporter=text node --test && node scripts/normalize-coverage.js"
   },
   "dependencies": {
     "koffi": "2.15.0"

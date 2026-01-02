@@ -34,6 +34,16 @@ jobs:
           ./native/build.sh
           cd go
           go test ./... -coverprofile=coverage.out
+      - name: Normalize coverage paths
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("go/coverage.out")
+          if path.exists():
+              text = path.read_text()
+              path.write_text(text.replace("github.com/cuihairu/epoch/", ""))
+          PY
       - name: Upload coverage
         if: steps.detect.outputs.present == 'true'
         uses: codecov/codecov-action@v4
