@@ -3,6 +3,7 @@ package io.epoch;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.Subscription;
+import io.aeron.driver.MediaDriver;
 import io.aeron.logbuffer.Header;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +20,10 @@ public final class AeronTransport implements Transport {
         String aeronDirectory,
         int fragmentLimit,
         int offerMaxAttempts,
-        IdleStrategy idleStrategy
+        IdleStrategy idleStrategy,
+        boolean embeddedDriver,
+        boolean dirDeleteOnStart,
+        boolean dirDeleteOnShutdown
     ) {
         public AeronConfig {
             if (fragmentLimit <= 0) {
@@ -34,7 +38,11 @@ public final class AeronTransport implements Transport {
         }
 
         public static AeronConfig defaults(String channel, int streamId, String aeronDirectory) {
-            return new AeronConfig(channel, streamId, aeronDirectory, 64, 10, new BusySpinIdleStrategy());
+            return new AeronConfig(channel, streamId, aeronDirectory, 64, 10, new BusySpinIdleStrategy(), false, false, false);
+        }
+
+        public static AeronConfig embeddedDefaults(String channel, int streamId, String aeronDirectory) {
+            return new AeronConfig(channel, streamId, aeronDirectory, 64, 10, new BusySpinIdleStrategy(), true, true, true);
         }
     }
 
@@ -42,19 +50,34 @@ public final class AeronTransport implements Transport {
     private final Aeron aeron;
     private final Publication publication;
     private final Subscription subscription;
+    private final MediaDriver mediaDriver;
     private final UnsafeBuffer sendBuffer;
     private final IdleStrategy idleStrategy;
     private final AeronStats stats = new AeronStats();
 
     public AeronTransport(AeronConfig config) {
         this.config = config;
+        MediaDriver driver = null;
+        String aeronDir = config.aeronDirectory();
+        if (config.embeddedDriver()) {
+            MediaDriver.Context driverContext = new MediaDriver.Context();
+            if (aeronDir != null && !aeronDir.isBlank()) {
+                driverContext.aeronDirectoryName(aeronDir);
+            }
+            driverContext.dirDeleteOnStart(config.dirDeleteOnStart());
+            driverContext.dirDeleteOnShutdown(config.dirDeleteOnShutdown());
+            driver = MediaDriver.launch(driverContext);
+            aeronDir = driverContext.aeronDirectoryName();
+        }
+
         Aeron.Context context = new Aeron.Context();
-        if (config.aeronDirectory() != null && !config.aeronDirectory().isBlank()) {
-            context.aeronDirectoryName(config.aeronDirectory());
+        if (aeronDir != null && !aeronDir.isBlank()) {
+            context.aeronDirectoryName(aeronDir);
         }
         this.aeron = Aeron.connect(context);
         this.publication = aeron.addPublication(config.channel(), config.streamId());
         this.subscription = aeron.addSubscription(config.channel(), config.streamId());
+        this.mediaDriver = driver;
         this.sendBuffer = new UnsafeBuffer(new ExpandableArrayBuffer(AeronMessageCodec.FRAME_LENGTH));
         this.idleStrategy = config.idleStrategy();
     }
@@ -100,6 +123,9 @@ public final class AeronTransport implements Transport {
         publication.close();
         subscription.close();
         aeron.close();
+        if (mediaDriver != null) {
+            mediaDriver.close();
+        }
     }
 
     public AeronConfig config() {

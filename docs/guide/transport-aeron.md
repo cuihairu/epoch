@@ -16,7 +16,7 @@
 1. 外置 Media Driver（推荐生产）
 2. Embedded Media Driver（开发/单机）
 
-当前实现默认使用外置 Media Driver。
+当前实现默认使用外置 Media Driver，Java 支持 embedded 模式（仅开发/单机）。
 
 ## 配置建议
 - `channel`: Aeron channel（ipc/udp）
@@ -30,6 +30,8 @@
 - `fragmentLimit`: 单次 poll 最大片段数（Java 默认 64）
 - `offerMaxAttempts`: offer 重试上限（Java 默认 10）
 - `idleStrategy`: 空转策略（Java 默认 BusySpin）
+- `embeddedDriver`: 是否启用 embedded driver（Java）
+- `dirDeleteOnStart/Shutdown`: embedded 模式是否清理目录（Java）
 
 ## 消息帧格式（v1）
 固定长度 56 bytes，偏移如下：
