@@ -27,6 +27,9 @@
 - `mtuLength`: MTU
 - `archiveEnabled`: 是否启用回放
 - `aeronDirectory`: driver 目录
+- `fragmentLimit`: 单次 poll 最大片段数（Java 默认 64）
+- `offerMaxAttempts`: offer 重试上限（Java 默认 10）
+- `idleStrategy`: 空转策略（Java 默认 BusySpin）
 
 ## 消息帧格式（v1）
 固定长度 56 bytes，偏移如下：
@@ -46,6 +49,8 @@
 - Subscription 进度、丢包计数
 - Archive 录制/回放进度
 - Error Log / Exception 事件
+
+Java 端提供 `AeronTransport.stats()` 用于读取发送/接收/失败统计。
 
 ## 多语言实现策略
 - Java：直接使用官方 Aeron 客户端
