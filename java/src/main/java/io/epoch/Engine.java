@@ -17,14 +17,16 @@ public final class Engine {
         public final long sourceId;
         public final long sourceSeq;
         public final long schemaId;
+        public final int qos;
         public final long payload;
 
-        public Message(long epoch, long channelId, long sourceId, long sourceSeq, long schemaId, long payload) {
+        public Message(long epoch, long channelId, long sourceId, long sourceSeq, long schemaId, int qos, long payload) {
             this.epoch = epoch;
             this.channelId = channelId;
             this.sourceId = sourceId;
             this.sourceSeq = sourceSeq;
             this.schemaId = schemaId;
+            this.qos = qos;
             this.payload = payload;
         }
     }
@@ -55,6 +57,7 @@ public final class Engine {
         messages.sort(Comparator
             .comparingLong((Message m) -> m.epoch)
             .thenComparingLong(m -> m.channelId)
+            .thenComparingInt(m -> -m.qos)
             .thenComparingLong(m -> m.sourceId)
             .thenComparingLong(m -> m.sourceSeq));
 

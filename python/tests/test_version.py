@@ -16,7 +16,9 @@ class VectorTest(unittest.TestCase):
                 if not line or line.startswith("#"):
                     continue
                 parts = line.split(",")
-                if parts[0] == "M" and len(parts) == 7:
+                if parts[0] == "M" and len(parts) in (7, 8):
+                    qos = int(parts[6]) if len(parts) == 8 else 0
+                    payload = int(parts[7]) if len(parts) == 8 else int(parts[6])
                     messages.append(
                         epoch.Message(
                             epoch=int(parts[1]),
@@ -24,7 +26,8 @@ class VectorTest(unittest.TestCase):
                             source_id=int(parts[3]),
                             source_seq=int(parts[4]),
                             schema_id=int(parts[5]),
-                            payload=int(parts[6]),
+                            qos=qos,
+                            payload=payload,
                         )
                     )
                 elif parts[0] == "E" and len(parts) == 4:
@@ -51,10 +54,10 @@ class VectorTest(unittest.TestCase):
 
     def test_process_messages_ordering(self):
         messages = [
-            epoch.Message(2, 2, 1, 2, 100, 5),
-            epoch.Message(1, 1, 2, 1, 100, 2),
-            epoch.Message(1, 1, 1, 2, 100, -1),
-            epoch.Message(3, 1, 1, 1, 100, 4),
+            epoch.Message(2, 2, 1, 2, 100, 0, 5),
+            epoch.Message(1, 1, 2, 1, 100, 0, 2),
+            epoch.Message(1, 1, 1, 2, 100, 0, -1),
+            epoch.Message(3, 1, 1, 1, 100, 0, 4),
         ]
         results = epoch.process_messages(messages)
         self.assertEqual(len(results), 3)
@@ -64,9 +67,9 @@ class VectorTest(unittest.TestCase):
 
     def test_in_memory_transport(self):
         transport = epoch.InMemoryTransport()
-        transport.send(epoch.Message(1, 1, 1, 1, 100, 1))
-        transport.send(epoch.Message(1, 1, 1, 2, 100, 2))
-        transport.send(epoch.Message(2, 1, 1, 3, 100, 3))
+        transport.send(epoch.Message(1, 1, 1, 1, 100, 0, 1))
+        transport.send(epoch.Message(1, 1, 1, 2, 100, 0, 2))
+        transport.send(epoch.Message(2, 1, 1, 3, 100, 0, 3))
         self.assertEqual(transport.poll(0), [])
         first = transport.poll(2)
         self.assertEqual([m.payload for m in first], [1, 2])

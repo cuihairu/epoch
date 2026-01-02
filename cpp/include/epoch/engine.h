@@ -12,6 +12,7 @@ struct Message {
     std::int64_t source_id;
     std::int64_t source_seq;
     std::int64_t schema_id;
+    std::uint8_t qos;
     std::int64_t payload;
 };
 

@@ -24,15 +24,20 @@ public class VectorTests
             {
                 continue;
             }
-            if (parts[0] == "M" && parts.Length == 7)
+            if (parts[0] == "M" && (parts.Length == 7 || parts.Length == 8))
             {
+                var qos = parts.Length == 8 ? byte.Parse(parts[6], CultureInfo.InvariantCulture) : (byte)0;
+                var payload = parts.Length == 8
+                    ? long.Parse(parts[7], CultureInfo.InvariantCulture)
+                    : long.Parse(parts[6], CultureInfo.InvariantCulture);
                 messages.Add(new Message(
                     long.Parse(parts[1], CultureInfo.InvariantCulture),
                     long.Parse(parts[2], CultureInfo.InvariantCulture),
                     long.Parse(parts[3], CultureInfo.InvariantCulture),
                     long.Parse(parts[4], CultureInfo.InvariantCulture),
                     long.Parse(parts[5], CultureInfo.InvariantCulture),
-                    long.Parse(parts[6], CultureInfo.InvariantCulture)
+                    qos,
+                    payload
                 ));
             }
             else if (parts[0] == "E" && parts.Length == 4)
@@ -82,10 +87,10 @@ public class VectorTests
     {
         var messages = new List<Message>
         {
-            new(2, 2, 1, 2, 100, 5),
-            new(1, 1, 2, 1, 100, 2),
-            new(1, 1, 1, 2, 100, -1),
-            new(3, 1, 1, 1, 100, 4)
+            new(2, 2, 1, 2, 100, 0, 5),
+            new(1, 1, 2, 1, 100, 0, 2),
+            new(1, 1, 1, 2, 100, 0, -1),
+            new(3, 1, 1, 1, 100, 0, 4)
         };
 
         var results = Engine.ProcessMessages(messages);
@@ -118,9 +123,9 @@ public class VectorTests
     public void InMemoryTransportPollsAndCloses()
     {
         var transport = new InMemoryTransport();
-        transport.Send(new Message(1, 1, 1, 1, 100, 1));
-        transport.Send(new Message(1, 1, 1, 2, 100, 2));
-        transport.Send(new Message(2, 1, 1, 3, 100, 3));
+        transport.Send(new Message(1, 1, 1, 1, 100, 0, 1));
+        transport.Send(new Message(1, 1, 1, 2, 100, 0, 2));
+        transport.Send(new Message(2, 1, 1, 3, 100, 0, 3));
 
         Assert.Empty(transport.Poll(0));
         var first = transport.Poll(2);

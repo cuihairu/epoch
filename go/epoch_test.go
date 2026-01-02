@@ -36,14 +36,23 @@ func TestVectorMatchesExpected(t *testing.T) {
 		if len(parts) == 0 {
 			continue
 		}
-		if parts[0] == "M" && len(parts) == 7 {
+		if parts[0] == "M" && (len(parts) == 7 || len(parts) == 8) {
+			var qos uint8
+			payload := int64(0)
+			if len(parts) == 7 {
+				payload = parseInt64(t, parts[6])
+			} else {
+				qos = uint8(parseInt64(t, parts[6]))
+				payload = parseInt64(t, parts[7])
+			}
 			messages = append(messages, Message{
 				Epoch:     parseInt64(t, parts[1]),
 				ChannelID: parseInt64(t, parts[2]),
 				SourceID:  parseInt64(t, parts[3]),
 				SourceSeq: parseInt64(t, parts[4]),
 				SchemaID:  parseInt64(t, parts[5]),
-				Payload:   parseInt64(t, parts[6]),
+				Qos:       qos,
+				Payload:   payload,
 			})
 		} else if parts[0] == "E" && len(parts) == 4 {
 			expected = append(expected, expectedResult{
@@ -97,12 +106,12 @@ func TestProcessMessagesEmpty(t *testing.T) {
 }
 
 func TestProcessMessagesOrdering(t *testing.T) {
-	messages := []Message{
-		{Epoch: 2, ChannelID: 2, SourceID: 1, SourceSeq: 2, SchemaID: 100, Payload: 5},
-		{Epoch: 1, ChannelID: 1, SourceID: 2, SourceSeq: 1, SchemaID: 100, Payload: 2},
-		{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2, SchemaID: 100, Payload: -1},
-		{Epoch: 3, ChannelID: 1, SourceID: 1, SourceSeq: 1, SchemaID: 100, Payload: 4},
-	}
+		messages := []Message{
+			{Epoch: 2, ChannelID: 2, SourceID: 1, SourceSeq: 2, SchemaID: 100, Qos: 0, Payload: 5},
+			{Epoch: 1, ChannelID: 1, SourceID: 2, SourceSeq: 1, SchemaID: 100, Qos: 0, Payload: 2},
+			{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2, SchemaID: 100, Qos: 0, Payload: -1},
+			{Epoch: 3, ChannelID: 1, SourceID: 1, SourceSeq: 1, SchemaID: 100, Qos: 0, Payload: 4},
+		}
 	results := ProcessMessages(messages)
 	if len(results) != 3 {
 		t.Fatalf("expected 3 results, got %d", len(results))
@@ -119,7 +128,7 @@ func TestProcessMessagesOrdering(t *testing.T) {
 }
 
 func TestCompareMessage(t *testing.T) {
-	base := Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 1}
+	base := Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 1, Qos: 1}
 	if compareMessage(base, Message{Epoch: 2}) >= 0 {
 		t.Fatalf("expected epoch compare")
 	}
@@ -135,6 +144,9 @@ func TestCompareMessage(t *testing.T) {
 	if compareMessage(base, Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2}) >= 0 {
 		t.Fatalf("expected seq compare")
 	}
+	if compareMessage(base, Message{Epoch: 1, ChannelID: 1, Qos: 2}) <= 0 {
+		t.Fatalf("expected qos compare")
+	}
 	if compareMessage(base, base) != 0 {
 		t.Fatalf("expected equality compare")
 	}
@@ -142,9 +154,9 @@ func TestCompareMessage(t *testing.T) {
 
 func TestInMemoryTransport(t *testing.T) {
 	transport := &InMemoryTransport{}
-	transport.Send(Message{Payload: 1})
-	transport.Send(Message{Payload: 2})
-	transport.Send(Message{Payload: 3})
+	transport.Send(Message{Qos: 0, Payload: 1})
+	transport.Send(Message{Qos: 0, Payload: 2})
+	transport.Send(Message{Qos: 0, Payload: 3})
 	if got := transport.Poll(0); len(got) != 0 {
 		t.Fatalf("expected empty poll")
 	}

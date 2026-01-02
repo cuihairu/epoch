@@ -36,6 +36,10 @@ std::vector<EpochResult> process_messages(std::vector<Message> messages)
         {
             return a.channel_id < b.channel_id;
         }
+        if (a.qos != b.qos)
+        {
+            return a.qos > b.qos;
+        }
         if (a.source_id != b.source_id)
         {
             return a.source_id < b.source_id;

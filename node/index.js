@@ -22,6 +22,9 @@ function processMessages(messages) {
   messages.sort((a, b) => {
     if (a.epoch !== b.epoch) return a.epoch - b.epoch;
     if (a.channelId !== b.channelId) return a.channelId - b.channelId;
+    const qosA = a.qos ?? 0;
+    const qosB = b.qos ?? 0;
+    if (qosA !== qosB) return qosB - qosA;
     if (a.sourceId !== b.sourceId) return a.sourceId - b.sourceId;
     return a.sourceSeq - b.sourceSeq;
   });

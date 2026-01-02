@@ -13,7 +13,7 @@
 - 状态只在 Epoch 边界对外可见
 
 ## 消息排序规则（最小一致性）
-- 排序键固定为 `(epoch, channelId, sourceId, sourceSeq)`
+- 排序键固定为 `(epoch, channelId, qos(desc), sourceId, sourceSeq)`
 - 同键冲突禁止；如果出现冲突视为协议错误
 
 ## 迟到与缺失策略

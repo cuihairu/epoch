@@ -15,6 +15,7 @@ class Message:
     source_id: int
     source_seq: int
     schema_id: int
+    qos: int
     payload: int
 
 
@@ -36,7 +37,7 @@ def fnv1a64_hex(value: str) -> str:
 def process_messages(messages: Iterable[Message]) -> List[EpochResult]:
     ordered = sorted(
         messages,
-        key=lambda m: (m.epoch, m.channel_id, m.source_id, m.source_seq),
+        key=lambda m: (m.epoch, m.channel_id, -m.qos, m.source_id, m.source_seq),
     )
     results: List[EpochResult] = []
     state = 0

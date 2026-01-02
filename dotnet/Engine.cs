@@ -4,13 +4,14 @@ namespace Epoch;
 
 public readonly struct Message
 {
-    public Message(long epoch, long channelId, long sourceId, long sourceSeq, long schemaId, long payload)
+    public Message(long epoch, long channelId, long sourceId, long sourceSeq, long schemaId, byte qos, long payload)
     {
         Epoch = epoch;
         ChannelId = channelId;
         SourceId = sourceId;
         SourceSeq = sourceSeq;
         SchemaId = schemaId;
+        Qos = qos;
         Payload = payload;
     }
 
@@ -19,6 +20,7 @@ public readonly struct Message
     public long SourceId { get; }
     public long SourceSeq { get; }
     public long SchemaId { get; }
+    public byte Qos { get; }
     public long Payload { get; }
 }
 
@@ -60,6 +62,8 @@ public static class Engine
             var cmp = a.Epoch.CompareTo(b.Epoch);
             if (cmp != 0) return cmp;
             cmp = a.ChannelId.CompareTo(b.ChannelId);
+            if (cmp != 0) return cmp;
+            cmp = b.Qos.CompareTo(a.Qos);
             if (cmp != 0) return cmp;
             cmp = a.SourceId.CompareTo(b.SourceId);
             if (cmp != 0) return cmp;

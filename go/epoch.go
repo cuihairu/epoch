@@ -12,6 +12,7 @@ type Message struct {
 	SourceID  int64
 	SourceSeq int64
 	SchemaID  int64
+	Qos       uint8
 	Payload   int64
 }
 
@@ -83,6 +84,12 @@ func compareMessage(a, b Message) int {
 	}
 	if a.ChannelID != b.ChannelID {
 		if a.ChannelID < b.ChannelID {
+			return -1
+		}
+		return 1
+	}
+	if a.Qos != b.Qos {
+		if a.Qos > b.Qos {
 			return -1
 		}
 		return 1

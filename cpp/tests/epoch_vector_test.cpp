@@ -59,15 +59,27 @@ void parse_vector_file(const std::filesystem::path &path,
         {
             continue;
         }
-        if (parts[0] == "M" && parts.size() == 7)
+        if (parts[0] == "M" && (parts.size() == 7 || parts.size() == 8))
         {
+            auto qos = static_cast<std::uint8_t>(0);
+            std::int64_t payload = 0;
+            if (parts.size() == 7)
+            {
+                payload = std::stoll(parts[6]);
+            }
+            else
+            {
+                qos = static_cast<std::uint8_t>(std::stoll(parts[6]));
+                payload = std::stoll(parts[7]);
+            }
             messages.push_back({
                 std::stoll(parts[1]),
                 std::stoll(parts[2]),
                 std::stoll(parts[3]),
                 std::stoll(parts[4]),
                 std::stoll(parts[5]),
-                std::stoll(parts[6])
+                qos,
+                payload
             });
         }
         else if (parts[0] == "E" && parts.size() == 4)
@@ -112,10 +124,10 @@ int main()
     }
 
     std::vector<epoch::Message> sample_messages = {
-        {2, 2, 1, 2, 100, 5},
-        {1, 1, 2, 1, 100, 2},
-        {1, 1, 1, 2, 100, -1},
-        {3, 1, 1, 1, 100, 4},
+        {2, 2, 1, 2, 100, 0, 5},
+        {1, 1, 2, 1, 100, 0, 2},
+        {1, 1, 1, 2, 100, 0, -1},
+        {3, 1, 1, 1, 100, 0, 4},
     };
     auto sample_results = epoch::process_messages(sample_messages);
     if (sample_results.size() != 3)
@@ -139,9 +151,9 @@ int main()
     }
 
     epoch::InMemoryTransport transport;
-    transport.send({1, 1, 1, 1, 100, 5});
-    transport.send({1, 1, 1, 2, 100, 7});
-    transport.send({2, 1, 1, 3, 100, 9});
+    transport.send({1, 1, 1, 1, 100, 0, 5});
+    transport.send({1, 1, 1, 2, 100, 0, 7});
+    transport.send({2, 1, 1, 3, 100, 0, 9});
     if (!transport.poll(0).empty())
     {
         return 1;

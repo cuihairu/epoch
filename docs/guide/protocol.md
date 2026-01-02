@@ -13,6 +13,7 @@
 - `sourceId`：来源标识（Actor/节点）
 - `sourceSeq`：来源内单调递增序号
 - `schemaId`：消息结构版本
+- `qos`：优先级（0-255，越大越优先）
 - `payload`：业务数据
 
 ## ActorId 约定（默认规则）
@@ -32,5 +33,6 @@
 - 必须提供“输入明细 + 期望 stateHash”的测试向量
 - 所有语言实现都需复用该向量
 - 基准文件：`test-vectors/epoch_vector_v1.txt`
-  - `M,epoch,channelId,sourceId,sourceSeq,schemaId,payload`
+  - `M,epoch,channelId,sourceId,sourceSeq,schemaId,payload`（qos 缺省为 0）
+  - `M,epoch,channelId,sourceId,sourceSeq,schemaId,qos,payload`
   - `E,epoch,state,hash`

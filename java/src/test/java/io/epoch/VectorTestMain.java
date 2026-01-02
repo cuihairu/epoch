@@ -17,10 +17,10 @@ public final class VectorTestMain {
         ensure(actorParts.equals(decoded), "ActorId codec mismatch");
 
         List<Engine.Message> sampleMessages = new ArrayList<>();
-        sampleMessages.add(new Engine.Message(2, 2, 1, 2, 100, 5));
-        sampleMessages.add(new Engine.Message(1, 1, 2, 1, 100, 2));
-        sampleMessages.add(new Engine.Message(1, 1, 1, 2, 100, -1));
-        sampleMessages.add(new Engine.Message(3, 1, 1, 1, 100, 4));
+        sampleMessages.add(new Engine.Message(2, 2, 1, 2, 100, 0, 5));
+        sampleMessages.add(new Engine.Message(1, 1, 2, 1, 100, 0, 2));
+        sampleMessages.add(new Engine.Message(1, 1, 1, 2, 100, 0, -1));
+        sampleMessages.add(new Engine.Message(3, 1, 1, 1, 100, 0, 4));
         List<Engine.EpochResult> sampleResults = Engine.processMessages(sampleMessages);
         ensure(sampleResults.size() == 3, "Sample result count mismatch");
         ensure(sampleResults.get(0).epoch == 1 && sampleResults.get(0).state == 1 &&
@@ -31,9 +31,9 @@ public final class VectorTestMain {
             "8e2e70ff6abccccd".equals(sampleResults.get(2).hash), "Sample epoch 3 mismatch");
 
         InMemoryTransport transport = new InMemoryTransport();
-        transport.send(new Engine.Message(1, 1, 1, 1, 100, 1));
-        transport.send(new Engine.Message(1, 1, 1, 2, 100, 2));
-        transport.send(new Engine.Message(2, 1, 1, 3, 100, 3));
+        transport.send(new Engine.Message(1, 1, 1, 1, 100, 0, 1));
+        transport.send(new Engine.Message(1, 1, 1, 2, 100, 0, 2));
+        transport.send(new Engine.Message(2, 1, 1, 3, 100, 0, 3));
         ensure(transport.poll(0).isEmpty(), "Transport poll(0) should be empty");
         List<Engine.Message> first = transport.poll(2);
         ensure(first.size() == 2 && first.get(0).payload == 1 && first.get(1).payload == 2,
@@ -55,14 +55,17 @@ public final class VectorTestMain {
             if (parts.length == 0) {
                 continue;
             }
-            if ("M".equals(parts[0]) && parts.length == 7) {
+            if ("M".equals(parts[0]) && (parts.length == 7 || parts.length == 8)) {
+                int qos = parts.length == 8 ? Integer.parseInt(parts[6]) : 0;
+                long payload = parts.length == 8 ? Long.parseLong(parts[7]) : Long.parseLong(parts[6]);
                 messages.add(new Engine.Message(
                     Long.parseLong(parts[1]),
                     Long.parseLong(parts[2]),
                     Long.parseLong(parts[3]),
                     Long.parseLong(parts[4]),
                     Long.parseLong(parts[5]),
-                    Long.parseLong(parts[6])
+                    qos,
+                    payload
                 ));
             } else if ("E".equals(parts[0]) && parts.length == 4) {
                 expected.add(new Expected(

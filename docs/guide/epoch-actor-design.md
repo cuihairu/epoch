@@ -43,6 +43,7 @@
 - 消息在到达时只入队，不立即触发执行
 - 支持不同类型:
   - MPSC / SPSC / Broadcast / LatestValue
+- 支持 `qos` 优先级字段，高优先级消息优先处理
 - 配合 Epoch 确保顺序与确定性
 
 #### 4. ECS (Entity-Component-System)

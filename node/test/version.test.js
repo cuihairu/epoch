@@ -17,14 +17,17 @@ test("vector matches expected", () => {
       continue;
     }
     const parts = trimmed.split(",");
-    if (parts[0] === "M" && parts.length === 7) {
+    if (parts[0] === "M" && (parts.length === 7 || parts.length === 8)) {
+      const qos = parts.length === 8 ? Number(parts[6]) : 0;
+      const payload = parts.length === 8 ? Number(parts[7]) : Number(parts[6]);
       messages.push({
         epoch: Number(parts[1]),
         channelId: Number(parts[2]),
         sourceId: Number(parts[3]),
         sourceSeq: Number(parts[4]),
         schemaId: Number(parts[5]),
-        payload: Number(parts[6])
+        qos,
+        payload
       });
     } else if (parts[0] === "E" && parts.length === 4) {
       expected.push({
@@ -59,10 +62,10 @@ test("processMessages handles empty input", () => {
 
 test("processMessages orders epochs and carries state", () => {
   const messages = [
-    { epoch: 2, channelId: 2, sourceId: 1, sourceSeq: 2, schemaId: 100, payload: 5 },
-    { epoch: 1, channelId: 1, sourceId: 2, sourceSeq: 1, schemaId: 100, payload: 2 },
-    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 2, schemaId: 100, payload: -1 },
-    { epoch: 3, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 100, payload: 4 }
+    { epoch: 2, channelId: 2, sourceId: 1, sourceSeq: 2, schemaId: 100, qos: 0, payload: 5 },
+    { epoch: 1, channelId: 1, sourceId: 2, sourceSeq: 1, schemaId: 100, qos: 0, payload: 2 },
+    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 2, schemaId: 100, qos: 0, payload: -1 },
+    { epoch: 3, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 100, qos: 0, payload: 4 }
   ];
 
   const results = epoch.processMessages(messages);
