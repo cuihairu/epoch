@@ -32,6 +32,7 @@
       "@vue/server-renderer": "3.5.43",
       "@vuepress/bundler-vite>vite": "7.3.5",
       "@vitejs/plugin-vue>vite": "7.3.5",
+      "vite>esbuild": "0.27.2",
       "baseline-browser-mapping": "2.11.0",
       "browserslist": "4.28.7",
       "immutable": "5.1.8",
