@@ -9,7 +9,7 @@
   "devDependencies": {
     "@vuepress/bundler-vite": "2.0.0-rc.26",
     "@vuepress/theme-default": "2.0.0-rc.26",
-    "vue": "3.5.26",
+    "vue": "3.5.43",
     "vuepress": "2.0.0-rc.26"
   },
   "pnpm": {
@@ -28,7 +28,20 @@
       "@vuepress/plugin-prismjs": "2.0.0-rc.21",
       "@vuepress/plugin-seo": "2.0.0-rc.26",
       "@vuepress/plugin-sitemap": "2.0.0-rc.26",
-      "@vuepress/plugin-theme-data": "2.0.0-rc.26"
+      "@vuepress/plugin-theme-data": "2.0.0-rc.26",
+      "@vue/server-renderer": "3.5.43",
+      "@vuepress/bundler-vite>vite": "7.3.5",
+      "@vitejs/plugin-vue>vite": "7.3.5",
+      "baseline-browser-mapping": "2.11.0",
+      "browserslist": "4.28.7",
+      "immutable": "5.1.8",
+      "js-yaml": "3.15.2",
+      "linkify-it": "5.0.2",
+      "markdown-it": "14.3.1",
+      "nanoid": "3.3.12",
+      "postcss": "8.5.23",
+      "rollup": "4.59.0",
+      "source-map-js": "1.2.2"
     }
   }
 }
