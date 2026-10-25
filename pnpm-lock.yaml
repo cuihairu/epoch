@@ -21,15 +21,15 @@ overrides:
   '@vuepress/plugin-sitemap': 2.0.0-rc.26
   '@vuepress/plugin-theme-data': 2.0.0-rc.26
   '@vue/server-renderer': 3.5.43
-  '@vuepress/bundler-vite>vite': 7.3.5
-  '@vitejs/plugin-vue>vite': 7.3.5
+  '@vuepress/bundler-vite>vite': 7.3.7
+  '@vitejs/plugin-vue>vite': 7.3.7
   vite>esbuild: 0.27.2
   baseline-browser-mapping: 2.11.0
   browserslist: 4.28.7
   immutable: 5.1.8
   js-yaml: 3.15.2
   linkify-it: 5.0.2
-  markdown-it: 14.3.1
+  markdown-it: 14.3.3
   nanoid: 3.3.12
   postcss: 8.5.23
   rollup: 4.59.0
@@ -677,7 +677,7 @@ packages:
     resolution: {integrity: sha512-TlGPkLFLVOY3T7fZrwdvKpjprR3s4fxRln0ORDo1VQ7HHyxJwTlrjKU3kpVWTlaAjIEuCTokmjkZnr8Tpc925w==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
-      vite: 7.3.5
+      vite: 7.3.7
       vue: ^3.2.25
 
   '@vue/compiler-core@3.5.43':
@@ -1155,7 +1155,7 @@ packages:
     resolution: {integrity: sha512-sa2ErMQ6kKOA4l31gLGYliFQrMKkqSO0ZJgGhDHKijPf0pNFM9vghjAh3gn26pS4JDRs7Iwa9S36gxm3vgZTzg==}
     peerDependencies:
       '@types/markdown-it': '*'
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   markdown-it-container@4.0.0:
     resolution: {integrity: sha512-HaNccxUH0l7BNGYbFbjmGpf5aLHAMTinqRZQAEQbMr2cdD3z91Q6kIo1oUn1CQndkT03jat6ckrdRYuwwqLlQw==}
@@ -1163,8 +1163,8 @@ packages:
   markdown-it-emoji@3.0.0:
     resolution: {integrity: sha512-+rUD93bXHubA4arpEZO3q80so0qgoFJEKRkRbjKX8RTdca89v2kfyF+xR3i2sQTwql9tpPZPOQN5B+PunspXRg==}
 
-  markdown-it@14.3.1:
-    resolution: {integrity: sha512-4Ej49aYTDFIQ+uBkfX8GBvJGccoARxxPep+7aWTs55ozbjQJpW9M26Fe53vnGgvLeVzva/amzjQQaQu9w0vMhA==}
+  markdown-it@14.3.3:
+    resolution: {integrity: sha512-L//tDAkjTjJCU6pBUSBTgs3Kg4InVaZuUZog/b6V12UKhcDQ7S78877ibbCanRExwPuYP1CZD7Gd2dxSy1GXRg==}
     hasBin: true
 
   mdurl@2.0.0:
@@ -1402,8 +1402,8 @@ packages:
     peerDependencies:
       browserslist: 4.28.7
 
-  vite@7.3.5:
-    resolution: {integrity: sha512-KuOaNhcnGFN2zIPGA7wRmzF+lJA1sea7rHq17aiJ++9lzY1WWG6Jpwqwe1KNbRVPIqHmr8GLYx7jbrQcN/7/ww==}
+  vite@7.3.7:
+    resolution: {integrity: sha512-AHEzTORMbi7/7aXp7w7KZ5+DCUdSeLsJz0grY8xHpc9DHdYb0vQu6DqJfm2tOw3gDExNgPgnJTXxM6syYFHaCA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -1670,47 +1670,47 @@ snapshots:
   '@mdit-vue/plugin-component@3.0.2':
     dependencies:
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   '@mdit-vue/plugin-frontmatter@3.0.2':
     dependencies:
       '@mdit-vue/types': 3.0.2
       '@types/markdown-it': 14.1.2
       gray-matter: 4.0.3
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   '@mdit-vue/plugin-headers@3.0.2':
     dependencies:
       '@mdit-vue/shared': 3.0.2
       '@mdit-vue/types': 3.0.2
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   '@mdit-vue/plugin-sfc@3.0.2':
     dependencies:
       '@mdit-vue/types': 3.0.2
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   '@mdit-vue/plugin-title@3.0.2':
     dependencies:
       '@mdit-vue/shared': 3.0.2
       '@mdit-vue/types': 3.0.2
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   '@mdit-vue/plugin-toc@3.0.2':
     dependencies:
       '@mdit-vue/shared': 3.0.2
       '@mdit-vue/types': 3.0.2
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   '@mdit-vue/shared@3.0.2':
     dependencies:
       '@mdit-vue/types': 3.0.2
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   '@mdit-vue/types@3.0.2': {}
 
@@ -1898,10 +1898,10 @@ snapshots:
 
   '@types/web-bluetooth@0.0.20': {}
 
-  '@vitejs/plugin-vue@6.0.3(vite@7.3.5(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2))(vue@3.5.43)':
+  '@vitejs/plugin-vue@6.0.3(vite@7.3.7(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2))(vue@3.5.43)':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-beta.53
-      vite: 7.3.5(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2)
+      vite: 7.3.7(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2)
       vue: 3.5.43
 
   '@vue/compiler-core@3.5.43':
@@ -1982,7 +1982,7 @@ snapshots:
 
   '@vuepress/bundler-vite@2.0.0-rc.26(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2)':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.3.5(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2))(vue@3.5.43)
+      '@vitejs/plugin-vue': 6.0.3(vite@7.3.7(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2))(vue@3.5.43)
       '@vuepress/bundlerutils': 2.0.0-rc.26
       '@vuepress/client': 2.0.0-rc.26
       '@vuepress/core': 2.0.0-rc.26
@@ -1993,7 +1993,7 @@ snapshots:
       postcss: 8.5.23
       postcss-load-config: 6.0.1(postcss@8.5.23)(yaml@2.8.2)
       rollup: 4.59.0
-      vite: 7.3.5(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2)
+      vite: 7.3.7(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2)
       vue: 3.5.43
       vue-router: 4.6.4(vue@3.5.43)
     transitivePeerDependencies:
@@ -2082,8 +2082,8 @@ snapshots:
       '@types/markdown-it-emoji': 3.0.1
       '@vuepress/shared': 2.0.0-rc.26
       '@vuepress/utils': 2.0.0-rc.26
-      markdown-it: 14.3.1
-      markdown-it-anchor: 9.2.0(@types/markdown-it@14.1.2)(markdown-it@14.3.1)
+      markdown-it: 14.3.3
+      markdown-it-anchor: 9.2.0(@types/markdown-it@14.1.2)(markdown-it@14.3.3)
       markdown-it-emoji: 3.0.0
       mdurl: 2.0.0
     transitivePeerDependencies:
@@ -2111,7 +2111,7 @@ snapshots:
   '@vuepress/plugin-container@2.0.0-rc.25(vuepress@2.0.0-rc.26(@vuepress/bundler-vite@2.0.0-rc.26(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2))(vue@3.5.43))':
     dependencies:
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
       markdown-it-container: 4.0.0
       vuepress: 2.0.0-rc.26(@vuepress/bundler-vite@2.0.0-rc.26(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2))(vue@3.5.43)
 
@@ -2596,16 +2596,16 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  markdown-it-anchor@9.2.0(@types/markdown-it@14.1.2)(markdown-it@14.3.1):
+  markdown-it-anchor@9.2.0(@types/markdown-it@14.1.2)(markdown-it@14.3.3):
     dependencies:
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.1
+      markdown-it: 14.3.3
 
   markdown-it-container@4.0.0: {}
 
   markdown-it-emoji@3.0.0: {}
 
-  markdown-it@14.3.1:
+  markdown-it@14.3.3:
     dependencies:
       argparse: 2.0.1
       entities: 4.5.0
@@ -2833,7 +2833,7 @@ snapshots:
       escalade: 3.2.0
       picocolors: 1.1.1
 
-  vite@7.3.5(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2):
+  vite@7.3.7(@types/node@25.0.3)(sass@1.97.1)(yaml@2.8.2):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.4)
