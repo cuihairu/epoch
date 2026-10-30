@@ -2,6 +2,8 @@
 
 Epoch 是基于 Aeron 的高性能 Actor / Channel Runtime，面向游戏与金融场景，强调确定性、可复现、低延迟抖动和高可推理性。
 
+<img :src="$withBase('/images/architecture-zh.svg')" alt="Epoch 分层架构">
+
 ## 快速入口
 - 概念与设计：`/guide/concepts.html`
 - 行为与一致性：`/guide/behavior.html`

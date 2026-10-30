@@ -2,6 +2,8 @@
 
 基于 Aeron 的高性能 Actor / Channel Runtime，面向游戏与金融场景，强调确定性、可复现、低延迟抖动和高可推理性。
 
+![Epoch layered architecture](docs/public/images/architecture-en.svg)
+
 ## 设计哲学
 - 时间为第一公民 (Epoch-driven)
 - Actor 状态封闭、顺序执行
