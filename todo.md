@@ -24,3 +24,7 @@
 - [x] 审核发现：新增审核发现把“范围含 4 个 docs 提交”的声明定位到 todo.md:17，但该声明实际位于 todo.md:18（第 17 行是“本轮 diff 未见问题”的条目行），行号引用偏移一行（todo.md:21）。
       复核属实：`git show 46111b5:todo.md` 第 18 行为“复核属实：范围含 4 个 docs 提交”，
       第 17 行为“本轮 diff 未见问题”条目行；上一审核发现引用的 `todo.md:17` 偏移一行，已改为 `todo.md:18`。
+- [x] 审核发现：本轮 diff 未见问题（9fea84e4..HEAD）。
+      复核属实：范围仅含 1 个提交 e46c64e（docs: fix line citation in audit finding），
+      仅改动 todo.md（4 增 1 删，纯文档行号修正，无功能/行为变更），
+      故该范围未见问题（证据：`git diff --name-status 9fea84e4..HEAD` 输出仅 `M todo.md`）。
