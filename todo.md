@@ -15,6 +15,9 @@
 - [x] 审核发现：`.vuepress/public/images/architecture-en.svg` 与 `docs/public/images/architecture-zh.svg` 在 diff 中无任何引用，属冗余副本，存在维护漂移风险（docs/.vuepress/public/images/architecture-en.svg:1）（commit: a268136）
 - [x] 审核发现：SVG 中通道类型写作 "Latest"，与设计文档 `LatestValue` 命名不一致（docs/public/images/architecture-en.svg:66）（commit: b39e34a）
 - [x] 审核发现：本轮 diff 未见问题（bf4f844..HEAD）。
-      复核属实：范围含 4 个 docs 提交（a50b85b / a268136 / b39e34a / eea7ee3），
+      复核属实：范围含 5 个 docs 提交（a50b85b / a268136 / b39e34a / eea7ee3 / 46111b5），
       均为文档修正——SVG 箭头改用显式颜色、删除经 `rg` 确认无引用的冗余副本、
       `LatestValue` 命名与 design 文档一致；两份 SVG 均通过 XML 解析，无功能/行为变更。
+- [x] 审核发现：todo.md 该条声称“范围含 4 个 docs 提交”，但 bf4f844..HEAD 实际含 5 个提交（a50b85b/a268136/b39e34a/eea7ee3/46111b5），遗漏了记录本身所在的 46111b5，计数不准确（todo.md:17）。
+      复核属实：`git log --oneline bf4f844..HEAD` 输出 5 个提交，含 46111b5（该条记录自身所在的提交），
+      已修正第 18 行计数为 5 并补入 46111b5；46111b5 也是 docs 提交（"docs: verify diff bf4f844..HEAD clean"）。
