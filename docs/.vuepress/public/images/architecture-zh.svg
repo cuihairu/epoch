@@ -64,7 +64,7 @@
 <g id="channel"><rect x="90" y="575" width="290" height="110" rx="12" fill="#fff" stroke="#86c9b3" stroke-width="1.5"/>
 <text x="110" y="609" class="name" text-anchor="start">Channel</text>
 <text x="110" y="636" class="body" text-anchor="start">消息入队 · 不立即触发执行</text>
-<text x="110" y="663" class="body" text-anchor="start">MPSC / SPSC / Broadcast / Latest</text>
+<text x="110" y="663" class="body" text-anchor="start">MPSC / SPSC / Broadcast / LatestValue</text>
 <text x="110" y="685" class="small" text-anchor="start">qos 优先级 · 高优先级先处理</text></g>
 <g id="epoch"><rect x="430" y="575" width="260" height="110" rx="12" fill="#fff" stroke="#86c9b3" stroke-width="1.5"/>
 <text x="450" y="609" class="name" text-anchor="start">Epoch</text>
