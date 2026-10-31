@@ -9,3 +9,8 @@
       验收：`awk 'length($0)>500 && /\|/' README.md` 输出为空（全仓库 .md 最长行 400 字符）。
       README.zh.md 在本仓库不存在（仅有 README.md / docs/README.md / docs/guide/README.md），
       其表格无此问题。
+
+## 审核发现
+- [x] 审核发现：SVG 箭头 marker 使用 `fill="context-stroke"`，ImageMagick 及部分 SVG 渲染器/旧浏览器不支持，可能导致箭头不可见（docs/public/images/architecture-en.svg:4）（commit: a50b85b）
+- [x] 审核发现：`.vuepress/public/images/architecture-en.svg` 与 `docs/public/images/architecture-zh.svg` 在 diff 中无任何引用，属冗余副本，存在维护漂移风险（docs/.vuepress/public/images/architecture-en.svg:1）（commit: a268136）
+- [x] 审核发现：SVG 中通道类型写作 "Latest"，与设计文档 `LatestValue` 命名不一致（docs/public/images/architecture-en.svg:66）（commit: b39e34a）
