@@ -14,3 +14,7 @@
 - [x] 审核发现：SVG 箭头 marker 使用 `fill="context-stroke"`，ImageMagick 及部分 SVG 渲染器/旧浏览器不支持，可能导致箭头不可见（docs/public/images/architecture-en.svg:4）（commit: a50b85b）
 - [x] 审核发现：`.vuepress/public/images/architecture-en.svg` 与 `docs/public/images/architecture-zh.svg` 在 diff 中无任何引用，属冗余副本，存在维护漂移风险（docs/.vuepress/public/images/architecture-en.svg:1）（commit: a268136）
 - [x] 审核发现：SVG 中通道类型写作 "Latest"，与设计文档 `LatestValue` 命名不一致（docs/public/images/architecture-en.svg:66）（commit: b39e34a）
+- [x] 审核发现：本轮 diff 未见问题（bf4f844..HEAD）。
+      复核属实：范围含 4 个 docs 提交（a50b85b / a268136 / b39e34a / eea7ee3），
+      均为文档修正——SVG 箭头改用显式颜色、删除经 `rg` 确认无引用的冗余副本、
+      `LatestValue` 命名与 design 文档一致；两份 SVG 均通过 XML 解析，无功能/行为变更。
