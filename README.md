@@ -1,8 +1,8 @@
 # Epoch
 
-基于 Aeron 的高性能 Actor / Channel Runtime，面向游戏与金融场景，强调确定性、可复现、低延迟抖动和高可推理性。
+<p align="center"><a href="https://cuihairu.github.io/epoch/"><img src="https://img.shields.io/badge/docs-blue" alt="docs"></a></p>
 
-![Epoch layered architecture](docs/public/images/architecture-en.svg)
+基于 Aeron 的高性能 Actor / Channel Runtime，面向游戏与金融场景，强调确定性、可复现、低延迟抖动和高可推理性。
 
 ## 设计哲学
 - 时间为第一公民 (Epoch-driven)
@@ -63,4 +63,4 @@ pnpm run docs:dev
 ```bash
 ./native/build.sh
 ```
-非 Java 语言默认从 `native/build` 加载 `epoch_aeron`，或通过 `EPOCH_AERON_LIBRARY` 指定路径。
+Python/Node 默认从 `native/build` 加载 `epoch_aeron`，或通过 `EPOCH_AERON_LIBRARY` 指定路径；Go 编译期链接 `native/build`（运行时需 `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH` 指向 `native/build`）；.NET 经平台动态库搜索路径加载 `epoch_aeron`。

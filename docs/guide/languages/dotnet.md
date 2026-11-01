@@ -6,5 +6,5 @@
 
 ## Aeron
 - 依赖：`native/build.sh` 构建 `epoch_aeron` 动态库
-- 环境变量：`EPOCH_AERON_LIBRARY` 指定动态库路径
+- 加载：经平台动态库搜索路径（Linux `LD_LIBRARY_PATH`、macOS `DYLD_LIBRARY_PATH`、Windows `PATH`）定位 `epoch_aeron`
 - 绑定：P/Invoke 调用 `epoch_aeron`

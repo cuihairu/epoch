@@ -18,20 +18,23 @@
 
 当前实现默认使用外置 Media Driver，Java 支持 embedded 模式（仅开发/单机）。C++ 端目前仅支持外置。
 
-## 配置建议
+## 配置项
+已实现：
 - `channel`: Aeron channel（ipc/udp）
 - `streamId`: stream 标识
+- `aeronDirectory`: driver 目录
+- `fragmentLimit`: 单次 poll 最大片段数（默认 64）
+- `offerMaxAttempts`: offer 重试上限（默认 10）
+- `idleStrategy`: 空转策略（Java，默认 BusySpin）
+- `embeddedDriver`: 是否启用 embedded driver（Java）
+- `dirDeleteOnStart/Shutdown`: embedded 模式是否清理目录（Java）
+
+规划中（未实现）：
 - `endpoint`: `host:port`
 - `termBufferLength`: 日志缓冲大小
 - `lingerNs`: 发送尾部优化
 - `mtuLength`: MTU
 - `archiveEnabled`: 是否启用回放
-- `aeronDirectory`: driver 目录
-- `fragmentLimit`: 单次 poll 最大片段数（Java 默认 64）
-- `offerMaxAttempts`: offer 重试上限（Java 默认 10）
-- `idleStrategy`: 空转策略（Java 默认 BusySpin）
-- `embeddedDriver`: 是否启用 embedded driver（Java）
-- `dirDeleteOnStart/Shutdown`: embedded 模式是否清理目录（Java）
 
 ## 消息帧格式（v1）
 固定长度 56 bytes，偏移如下：
@@ -46,13 +49,11 @@
 - `48`: payload (i64)
 
 ## Debug / 观测出口
-建议透出以下信息（与 Aeron counters 对齐）：
-- Publication 位置、Backpressure 计数
-- Subscription 进度、丢包计数
-- Archive 录制/回放进度
-- Error Log / Exception 事件
+`stats()` 已暴露（Java `AeronTransport.stats()`、C++ `stats()`、native `epoch_aeron_stats`）：
+- 发送/接收计数（sent / received）
+- offer 失败细分：backpressure / not_connected / admin_action / closed / max_position / failed（Java 无独立 max_position 计数，归入 failed）
 
-Java 端提供 `AeronTransport.stats()` 用于读取发送/接收/失败统计，C++ 端提供 `stats()`。
+规划中（未实现）：Publication 位置、Subscription 进度、丢包计数、Archive 回放进度、Error Log。
 
 ## 多语言实现策略
 - Java：直接使用官方 Aeron 客户端

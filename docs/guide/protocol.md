@@ -17,16 +17,17 @@
 - `payload`：业务数据
 
 ## ActorId 约定（默认规则）
-- `sourceId` 默认等于 `actorId`
+- `sourceId` 默认等于 `actorId`（设计约定；当前实现未强制校验，engine 仅透传字段）
 - `actorId` 为 64-bit 数值，可按规则解析
 - 默认布局（高位到低位）：
   - `region(10) | server(12) | processType(6) | processIndex(10) | actorIndex(26)`
-- 解析规则可替换：实现 `ActorIdCodec`（encode/decode/name）即可切换
+- 解析规则可替换：实现 Codec 接口（encode/decode/name）即可切换（C++/Go/Python 名为 `ActorIdCodec`，Java 为 `ActorId.Codec`，.NET 为 `IActorIdCodec`）
 - Node.js 需要用 `BigInt` 保存完整 64-bit
 
 ## 传输实现原则
-- 各语言独立实现 Transport，不依赖 C/C++ 绑定
-- 可复用 Aeron 或自研 UDP 传输
+- Java：独立实现 Transport（官方 Aeron 客户端）
+- C++：基于 Aeron C 客户端（`third_party/aeron` submodule）
+- C#/Go/Node/Python：经 `native/` 的 `epoch_aeron` 绑定（Aeron C）接入
 - 必须保证可重放与一致性验证
 
 ## Aeron 集成
