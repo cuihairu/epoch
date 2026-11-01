@@ -30,7 +30,7 @@
       故该范围未见问题（证据：`git diff --name-status 9fea84e4..HEAD` 输出仅 `M todo.md`）。
 
 - [x] 审核发现：本轮 diff 未见问题（e46c64e..HEAD）。
-      复核属实：范围仅含 1 个提交 9b4bb5e（docs: verify diff 9fea84e4..HEAD clean），
-      仅改动 todo.md（4 增 0 删，纯文档记录，无功能/行为变更），
-      故该范围未见问题（证据：`git diff --name-status e46c64e..HEAD` 输出仅 `M todo.md`；
-      抽查该提交新增记录位于 `todo.md:32-36`）。
+      复核属实：范围含 2 个提交（9b4bb5e 与 5d89727），改动 todo.md 10 增 0 删，均为纯文档记录；
+      证据：`git log --oneline e46c64e..HEAD`、`git diff --stat e46c64e..HEAD`。
+
+- [x] 审核发现：新增记录将 e46c64e..HEAD 范围误述为“仅含 1 个提交 9b4bb5e、改动 todo.md 4 增 0 删”，实际该范围含 2 个提交（9b4bb5e 与记录自身所在的 5d89727）且改动 todo.md 10 增 0 删，提交计数与增删数均失准（todo.md:33）。
