@@ -29,8 +29,12 @@
       仅改动 todo.md（4 增 1 删，纯文档行号修正，无功能/行为变更），
       故该范围未见问题（证据：`git diff --name-status 9fea84e4..HEAD` 输出仅 `M todo.md`）。
 
-- [x] 审核发现：本轮 diff 未见问题（e46c64e..HEAD）。
+- [x] 审核发现：本轮 diff 未见问题（e46c64e..5d89727）。
       复核属实：范围含 2 个提交（9b4bb5e 与 5d89727），改动 todo.md 10 增 0 删，均为纯文档记录；
-      证据：`git log --oneline e46c64e..HEAD`、`git diff --stat e46c64e..HEAD`。
+      证据：`git log --oneline e46c64e..5d89727`、`git diff --stat e46c64e..5d89727`。
 
-- [x] 审核发现：新增记录将 e46c64e..HEAD 范围误述为“仅含 1 个提交 9b4bb5e、改动 todo.md 4 增 0 删”，实际该范围含 2 个提交（9b4bb5e 与记录自身所在的 5d89727）且改动 todo.md 10 增 0 删，提交计数与增删数均失准（todo.md:33）。
+- [x] 审核发现：新增记录将 e46c64e..5d89727 范围误述为“仅含 1 个提交 9b4bb5e、改动 todo.md 4 增 0 删”，实际该范围含 2 个提交（9b4bb5e 与记录自身所在的 5d89727）且改动 todo.md 10 增 0 删，提交计数与增删数均失准（5d89727:todo.md:33）。
+- [x] 审核发现：修正后记录称 e46c64e..HEAD 范围含 2 个提交，但当前 HEAD 下该范围实际含 3 个提交（9b4bb5e、5d89727、ee11c9c），遗漏本次修正提交 ee11c9c 自身，与其引用证据 `git log --oneline e46c64e..HEAD` 现返回 3 条相矛盾（todo.md:33）。
+      复核属实：在 HEAD=ee11c9c 实测 `git log --oneline e46c64e..HEAD` 返回 3 条（9b4bb5e、5d89727、ee11c9c），与记录“含 2 个提交”不符；已将该记录与下方发现的证据范围固定为 `e46c64e..5d89727`（2 个提交，10 增 0 删），并追加本记录（证据：`git log --oneline e46c64e..5d89727` 输出 2 条、`git diff --stat e46c64e..5d89727` 输出 `todo.md | 10 ++++++++`）。
+- [x] 审核发现：新增发现称 e46c64e..HEAD 范围“实际含 2 个提交”，但当前 HEAD 下该范围已含 3 个提交（新增 ee11c9c），表述随 HEAD 前移而失真（todo.md:36）。
+      复核属实：该记录用随 HEAD 前移的 `e46c64e..HEAD` 表述“含 2 个提交”，在 HEAD=ee11c9c 下已失真（实为 3 个）；已将相关表述与证据固定为 `e46c64e..5d89727`（2 个提交），并在前一行补充说明（证据：`git log --oneline e46c64e..5d89727` 输出 2 条）。
