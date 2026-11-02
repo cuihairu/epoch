@@ -21,7 +21,7 @@
 - `actorId` 为 64-bit 数值，可按规则解析
 - 默认布局（高位到低位）：
   - `region(10) | server(12) | processType(6) | processIndex(10) | actorIndex(26)`
-- 解析规则可替换：实现 Codec 接口（encode/decode/name）即可切换（C++/Go/Python 名为 `ActorIdCodec`，Java 为 `ActorId.Codec`，.NET 为 `IActorIdCodec`）
+- 解析规则可替换：实现 Codec 接口（encode/decode/name）即可切换（C++/Go/Python/Node.js 名为 `ActorIdCodec`，Java 为 `ActorId.Codec`，.NET 为 `IActorIdCodec`）
 - Node.js 需要用 `BigInt` 保存完整 64-bit
 
 ## 传输实现原则
