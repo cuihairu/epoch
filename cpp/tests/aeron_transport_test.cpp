@@ -39,6 +39,7 @@ struct StubState {
     int context_set_dir_calls = 0;
     bool init_fail = false;
     bool start_fail = false;
+    bool context_set_dir_fail = false;
 };
 
 StubState *g_state = nullptr;
@@ -69,6 +70,10 @@ int stub_context_set_dir(aeron_context_t *, const char *)
     if (g_state != nullptr)
     {
         g_state->context_set_dir_calls++;
+        if (g_state->context_set_dir_fail)
+        {
+            return -1;
+        }
     }
     return 0;
 }
@@ -401,6 +406,35 @@ bool test_aeron_init_failure_cleans_up()
     return ok;
 }
 
+bool test_aeron_context_set_dir_failure_cleans_up()
+{
+    StubState state;
+    state.context_set_dir_fail = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 43, "/nonexistent", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    // set_dir failure: client was never created; context must still be released.
+    if (!state.context_set_dir_calls || state.close_client || !state.close_context)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
 bool test_aeron_start_failure_cleans_up()
 {
     StubState state;
@@ -451,6 +485,10 @@ int main()
         return 1;
     }
     if (!test_aeron_init_failure_cleans_up())
+    {
+        return 1;
+    }
+    if (!test_aeron_context_set_dir_failure_cleans_up())
     {
         return 1;
     }
