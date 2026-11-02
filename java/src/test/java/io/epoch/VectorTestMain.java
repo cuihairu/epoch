@@ -110,6 +110,30 @@ public final class VectorTestMain {
         ensure(closedTransport.poll(1).isEmpty(), "AeronTransport poll after close mismatch");
         closedTransport.close();
 
+        AeronTransport.AeronConfig retryCloseConfig = new AeronTransport.AeronConfig(
+            "aeron:ipc", 44, "", 64, 10, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
+        FakeAeronAdapter retryCloseAdapter = new FakeAeronAdapter();
+        retryCloseAdapter.failFirstClose = true;
+        AeronTransport retryCloseTransport = new AeronTransport(retryCloseConfig, retryCloseAdapter);
+        boolean closeRetryFailed = false;
+        try {
+            retryCloseTransport.close();
+        } catch (IllegalStateException ex) {
+            closeRetryFailed = true;
+        }
+        ensure(closeRetryFailed, "AeronTransport first close should fail");
+        ensure(retryCloseAdapter.closeAttempts == 1, "AeronTransport failed close attempts mismatch");
+        boolean retrySendOk = false;
+        try {
+            retryCloseTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 7));
+            retrySendOk = true;
+        } catch (IllegalStateException ex) {
+            retrySendOk = false;
+        }
+        ensure(retrySendOk, "AeronTransport should remain open after failed close");
+        retryCloseTransport.close();
+        ensure(retryCloseAdapter.closeAttempts == 2, "AeronTransport close retry attempts mismatch");
+
         AeronTransport.AeronConfig failingConfig = new AeronTransport.AeronConfig(
             "aeron:ipc", 42, "", 64, 2, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
         AeronTransport failingTransport = new AeronTransport(
@@ -183,6 +207,8 @@ public final class VectorTestMain {
     private static final class FakeAeronAdapter implements AeronTransport.AeronAdapter {
         private final List<byte[]> frames = new ArrayList<>();
         private final List<Long> offerResults = new ArrayList<>();
+        private int closeAttempts;
+        private boolean failFirstClose;
 
         FakeAeronAdapter(long... results) {
             for (long result : results) {
@@ -217,6 +243,10 @@ public final class VectorTestMain {
 
         @Override
         public void close() {
+            closeAttempts++;
+            if (failFirstClose && closeAttempts == 1) {
+                throw new IllegalStateException("AeronTransport close failure mismatch");
+            }
             frames.clear();
         }
     }

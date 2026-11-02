@@ -167,8 +167,8 @@ public final class AeronTransport implements Transport {
         if (closed) {
             return;
         }
-        closed = true;
         adapter.close();
+        closed = true;
     }
 
     public AeronConfig config() {
