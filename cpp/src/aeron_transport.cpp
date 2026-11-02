@@ -163,17 +163,17 @@ AeronTransport::AeronTransport(AeronConfig config) : config_(std::move(config))
     {
         aeron_context_t *context = nullptr;
         throw_if_error(detail::aeron_hooks().context_init(&context), "aeron_context_init failed");
+        context_ = context;
         if (!config_.aeron_directory.empty())
         {
-            throw_if_error(detail::aeron_hooks().context_set_dir(context, config_.aeron_directory.c_str()),
+            throw_if_error(detail::aeron_hooks().context_set_dir(context_, config_.aeron_directory.c_str()),
                            "aeron_context_set_dir failed");
         }
-        context_ = context;
 
         aeron_t *client = nullptr;
         throw_if_error(detail::aeron_hooks().init(&client, context_), "aeron_init failed");
-        throw_if_error(detail::aeron_hooks().start(client), "aeron_start failed");
         client_ = client;
+        throw_if_error(detail::aeron_hooks().start(client_), "aeron_start failed");
 
         aeron_async_add_publication_t *pub_async = nullptr;
         throw_if_error(

@@ -37,6 +37,8 @@ struct StubState {
     int async_pub_poll_calls = 0;
     int async_sub_poll_calls = 0;
     int context_set_dir_calls = 0;
+    bool init_fail = false;
+    bool start_fail = false;
 };
 
 StubState *g_state = nullptr;
@@ -73,6 +75,11 @@ int stub_context_set_dir(aeron_context_t *, const char *)
 
 int stub_init(aeron_t **client, aeron_context_t *)
 {
+    if (g_state != nullptr && g_state->init_fail)
+    {
+        *client = nullptr;
+        return -1;
+    }
     static int dummy = 0;
     *client = reinterpret_cast<aeron_t *>(&dummy);
     return 0;
@@ -80,6 +87,10 @@ int stub_init(aeron_t **client, aeron_context_t *)
 
 int stub_start(aeron_t *)
 {
+    if (g_state != nullptr && g_state->start_fail)
+    {
+        return -1;
+    }
     return 0;
 }
 
@@ -361,6 +372,64 @@ bool test_aeron_constructor_errors()
     return true;
 }
 
+bool test_aeron_init_failure_cleans_up()
+{
+    StubState state;
+    state.init_fail = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 41, "", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    // init failure: client was never created; context must still be released.
+    if (state.close_client || !state.close_context)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_start_failure_cleans_up()
+{
+    StubState state;
+    state.start_fail = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 42, "", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    // start failure: client was created and must be closed, then context released.
+    if (!state.close_client || !state.close_context)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
 } // namespace
 
 int main()
@@ -378,6 +447,14 @@ int main()
         return 1;
     }
     if (!test_aeron_constructor_errors())
+    {
+        return 1;
+    }
+    if (!test_aeron_init_failure_cleans_up())
+    {
+        return 1;
+    }
+    if (!test_aeron_start_failure_cleans_up())
     {
         return 1;
     }

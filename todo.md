@@ -20,7 +20,7 @@
 - [x] P0/P1 当场修复，无适用项；P2/P3 记 todo
 
 ## 待办（P2，记 todo）
-- [ ] 修复 C++ AeronTransport 构造器异常路径资源泄漏（cpp/src/aeron_transport.cpp:165-176）
+- [x] 修复 C++ AeronTransport 构造器异常路径资源泄漏（context_/client_ 提前赋值使 catch 路径正确释放；新增 init/start 失败清理测试；ctest 3/3 绿）
 - [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）
 - [ ] Java AeronTransport 补充关闭状态守卫（java/src/main/java/io/epoch/AeronTransport.java:114-166）
 
