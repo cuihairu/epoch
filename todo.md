@@ -28,7 +28,7 @@
 - [x] 审核发现：审计表 C1 称 architecture-en.svg「无任何页面引用」不准确——基线 README.md:5 实际引用了该资产，且其唯一引用与本删除在提交 1948936 同批移除，删除的是仍被引用的资产（已改写 docs/审计-文档一致性.md C1 与 logo 取证说明；pnpm run docs:build 绿）
 - [x] 审核发现：protocol.md 列各语言 Codec 命名时遗漏 Node.js——node/src/actor-id.ts:9 同样定义 `ActorIdCodec` 类型（已补充 docs/guide/protocol.md Node.js 命名；cd node && pnpm test 绿）
 - [x] 审核发现：C1 重新分类（码超前→不符）未同步更新段一三桶计数表——仍记「码超前=1 / 不符=1」，实际审计表为码超前=0、不符=2（已改为码超前=0、不符=2，docs/审计-文档一致性.md:13-14；pnpm run docs:build 绿）
-- [ ] 审核发现：段三总结仍称「1 项删除无引用资产」，与修正后 C1（资产被 README.md:5 引用、连同引用同批移除）口径矛盾（docs/审计-文档一致性.md:25）
+- [x] 审核发现：段三总结仍称「1 项删除无引用资产」，与修正后 C1（资产被 README.md:5 引用、连同引用同批移除）口径矛盾（commit 75911f0 docs/审计-文档一致性.md:13-14；本项已改为「删除冗余资产并同步移除其唯一引用」docs/审计-文档一致性.md:25；pnpm run docs:build 绿）
 - [ ] 审核发现：close() 先置 closed=true 再 adapter.close()，若 adapter.close() 中途抛异常则资源仅部分释放、后续 close() 因 closed 已真而提前返回，泄漏无法重试（java/src/main/java/io/epoch/AeronTransport.java:170-171）
 - [ ] 审核发现：C++ 构造器修复把 context_ 赋值提前至 context_set_dir 之前（正是为让 set_dir 失败时 close() 释放 context），但新增测试只覆盖 context_init/init/start 失败，未覆盖 context_set_dir 失败清理路径——stub_context_set_dir 恒返 0、无任何用例注入其失败（cpp/tests/aeron_transport_test.cpp:67-74、test_aeron_constructor_errors 仅模拟 context_init 失败 :353-373；建议补 set_dir 失败用例并断言 close_context）
 - [ ] 审核发现：Java 关闭守卫为 volatile 非锁守卫，send/poll 检查 closed 后与并发 close() 存在 TOCTOU——线程读 closed==false 后 close() 已完成，该线程仍在已关闭 adapter 上 offer/poll，可能丢消息或抛异常（java/src/main/java/io/epoch/AeronTransport.java:128-171）；属尽力防护而非完全互斥，如需严格串行需 synchronized 包住 close+操作
