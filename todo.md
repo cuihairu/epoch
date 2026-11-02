@@ -12,6 +12,14 @@
 - [x] 报告落 docs/review/2026-11-01-code-review.md（commit e9d087c）
 - [x] P0/P1 当场修复，无适用项；P2/P3 记 todo（commit e9d087c）
 
+## 代码深审（2026-11-02）
+- [x] 安全静态扫描全仓 6 类，全部无发现
+- [x] 隐藏 bug 猎捕，发现 3 项 P2（F1/F2 为上轮遗留、F3 为本轮新发现）
+- [x] 质量门快照，C++/Go/Python/Node/Java 全绿，.NET 测试因环境限制未执行
+- [x] 报告落 docs/review/2026-11-02-code-review-opencode.md
+- [x] P0/P1 当场修复，无适用项；P2/P3 记 todo
+
 ## 待办（P2，记 todo）
 - [ ] 修复 C++ AeronTransport 构造器异常路径资源泄漏（cpp/src/aeron_transport.cpp:165-176）
 - [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）
+- [ ] Java AeronTransport 补充关闭状态守卫（java/src/main/java/io/epoch/AeronTransport.java:114-166）
