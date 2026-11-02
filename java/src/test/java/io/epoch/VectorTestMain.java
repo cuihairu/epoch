@@ -125,40 +125,65 @@ public final class VectorTestMain {
         }
         ensure(closeRetryFailed, "AeronTransport first close should fail");
         ensure(retryCloseAdapter.closeAttempts == 1, "AeronTransport failed close attempts mismatch");
-        boolean retrySendOk = false;
+        boolean sendAfterFailedCloseBlocked = false;
         try {
             retryCloseTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 7));
-            retrySendOk = true;
         } catch (IllegalStateException ex) {
-            retrySendOk = false;
+            sendAfterFailedCloseBlocked = true;
         }
-        ensure(retrySendOk, "AeronTransport should remain open after failed close");
+        ensure(sendAfterFailedCloseBlocked, "AeronTransport should close state after failed close");
+        ensure(retryCloseTransport.poll(1).isEmpty(), "AeronTransport should poll empty after failed close");
         retryCloseTransport.close();
-        ensure(retryCloseAdapter.closeAttempts == 2, "AeronTransport close retry attempts mismatch");
+        ensure(retryCloseAdapter.closeAttempts == 1, "AeronTransport close retry attempts mismatch");
 
         // Concurrent send + close: close must wait for in-flight send to finish.
         AeronTransport.AeronConfig raceConfig = new AeronTransport.AeronConfig(
             "aeron:ipc", 45, "", 64, 10, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
-        FakeAeronAdapter raceAdapter = new FakeAeronAdapter();
-        raceAdapter.blockOffer.set(true);
-        raceAdapter.blockClose.set(true);
-        AeronTransport raceTransport = new AeronTransport(raceConfig, raceAdapter);
+        FakeAeronAdapter sendRaceAdapter = new FakeAeronAdapter();
+        sendRaceAdapter.blockOffer.set(true);
+        sendRaceAdapter.blockClose.set(true);
+        AeronTransport sendRaceTransport = new AeronTransport(raceConfig, sendRaceAdapter);
         Thread sender = new Thread(() -> {
             try {
-                raceTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 1));
+                sendRaceTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 1));
             } catch (RuntimeException ignored) {
             }
         });
         sender.start();
-        raceAdapter.offerStarted.await();
-        Thread closer = new Thread(raceTransport::close);
-        closer.start();
-        ensure(!raceAdapter.closeStarted.await(50, java.util.concurrent.TimeUnit.MILLISECONDS),
-            "AeronTransport close should wait for in-flight send");
-        raceAdapter.releaseOffer.countDown();
-        sender.join();
-        closer.join();
-        ensure(raceAdapter.closeAttempts == 1, "AeronTransport close after concurrent send mismatch");
+        await(sendRaceAdapter.offerStarted, 5000, "send should start");
+        Thread sendCloser = new Thread(sendRaceTransport::close);
+        sendCloser.start();
+        try {
+            ensure(!sendRaceAdapter.closeStarted.await(50, java.util.concurrent.TimeUnit.MILLISECONDS),
+                "AeronTransport close should wait for in-flight send");
+        } finally {
+            sendRaceAdapter.releaseOffer.countDown();
+            sendRaceAdapter.releaseClose.countDown();
+        }
+        join(sender, "send thread should finish");
+        join(sendCloser, "close thread should finish");
+        ensure(sendRaceAdapter.closeAttempts == 1, "AeronTransport close after concurrent send mismatch");
+
+        // Concurrent poll + close: close must wait for in-flight poll to finish.
+        FakeAeronAdapter pollRaceAdapter = new FakeAeronAdapter();
+        pollRaceAdapter.blockPoll.set(true);
+        pollRaceAdapter.blockClose.set(true);
+        AeronTransport pollRaceTransport = new AeronTransport(raceConfig, pollRaceAdapter);
+        Thread poller = new Thread(() -> pollRaceTransport.poll(1));
+        poller.start();
+        await(pollRaceAdapter.pollStarted, 5000, "poll should start");
+        Thread pollCloser = new Thread(pollRaceTransport::close);
+        pollCloser.start();
+        try {
+            ensure(!pollRaceAdapter.closeStarted.await(50, java.util.concurrent.TimeUnit.MILLISECONDS),
+                "AeronTransport close should wait for in-flight poll");
+        } finally {
+            pollRaceAdapter.releasePoll.countDown();
+            pollRaceAdapter.releaseClose.countDown();
+        }
+        join(poller, "poll thread should finish");
+        join(pollCloser, "close thread should finish");
+        ensure(pollRaceAdapter.closeAttempts == 1, "AeronTransport close after concurrent poll mismatch");
 
         AeronTransport.AeronConfig failingConfig = new AeronTransport.AeronConfig(
             "aeron:ipc", 42, "", 64, 2, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
@@ -230,14 +255,27 @@ public final class VectorTestMain {
         }
     }
 
+    private static void await(java.util.concurrent.CountDownLatch latch, long ms, String message) throws InterruptedException {
+        ensure(latch.await(ms, java.util.concurrent.TimeUnit.MILLISECONDS), message);
+    }
+
+    private static void join(Thread thread, String message) throws InterruptedException {
+        thread.join(5000);
+        ensure(!thread.isAlive(), message);
+    }
+
     private static final class FakeAeronAdapter implements AeronTransport.AeronAdapter {
         private final List<byte[]> frames = new ArrayList<>();
         private final List<Long> offerResults = new ArrayList<>();
         private final CountDownLatch closeStarted = new CountDownLatch(1);
         private final AtomicBoolean blockClose = new AtomicBoolean(false);
+        private final CountDownLatch releaseClose = new CountDownLatch(1);
         private final CountDownLatch offerStarted = new CountDownLatch(1);
         private final CountDownLatch releaseOffer = new CountDownLatch(1);
         private final AtomicBoolean blockOffer = new AtomicBoolean(false);
+        private final CountDownLatch pollStarted = new CountDownLatch(1);
+        private final CountDownLatch releasePoll = new CountDownLatch(1);
+        private final AtomicBoolean blockPoll = new AtomicBoolean(false);
         private int closeAttempts;
         private boolean failFirstClose;
 
@@ -271,6 +309,14 @@ public final class VectorTestMain {
 
         @Override
         public int poll(io.aeron.logbuffer.FragmentHandler handler, int fragmentLimit) {
+            if (blockPoll.get()) {
+                pollStarted.countDown();
+                try {
+                    releasePoll.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             int count = 0;
             while (count < fragmentLimit && !frames.isEmpty()) {
                 byte[] frame = frames.remove(0);
@@ -285,7 +331,7 @@ public final class VectorTestMain {
             if (blockClose.get()) {
                 closeStarted.countDown();
                 try {
-                    Thread.sleep(1000);
+                    releaseClose.await();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }

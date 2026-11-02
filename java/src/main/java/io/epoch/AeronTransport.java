@@ -7,6 +7,7 @@ import io.aeron.driver.MediaDriver;
 import io.aeron.logbuffer.Header;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 import org.agrona.DirectBuffer;
@@ -136,7 +137,7 @@ public final class AeronTransport implements Transport {
             do {
                 result = adapter.offer(sendBuffer, 0, AeronMessageCodec.FRAME_LENGTH);
                 if (result >= 0) {
-                    stats.sentCount++;
+                    stats.recordSent();
                     return;
                 }
                 stats.recordOfferFailure(result);
@@ -161,7 +162,7 @@ public final class AeronTransport implements Transport {
                     return;
                 }
                 out.add(AeronMessageCodec.decode(buffer, offset));
-                stats.receivedCount++;
+                stats.recordReceived();
             }, limit);
             return out;
         }
@@ -173,8 +174,11 @@ public final class AeronTransport implements Transport {
             if (closed) {
                 return;
             }
-            adapter.close();
-            closed = true;
+            try {
+                adapter.close();
+            } finally {
+                closed = true;
+            }
         }
     }
 
@@ -187,54 +191,62 @@ public final class AeronTransport implements Transport {
     }
 
     public static final class AeronStats {
-        private long sentCount;
-        private long receivedCount;
-        private long offerBackPressure;
-        private long offerNotConnected;
-        private long offerAdminAction;
-        private long offerClosed;
-        private long offerFailed;
+        private final AtomicLong sentCount = new AtomicLong();
+        private final AtomicLong receivedCount = new AtomicLong();
+        private final AtomicLong offerBackPressure = new AtomicLong();
+        private final AtomicLong offerNotConnected = new AtomicLong();
+        private final AtomicLong offerAdminAction = new AtomicLong();
+        private final AtomicLong offerClosed = new AtomicLong();
+        private final AtomicLong offerFailed = new AtomicLong();
 
         private void recordOfferFailure(long result) {
             if (result == Publication.BACK_PRESSURED) {
-                offerBackPressure++;
+                offerBackPressure.incrementAndGet();
             } else if (result == Publication.NOT_CONNECTED) {
-                offerNotConnected++;
+                offerNotConnected.incrementAndGet();
             } else if (result == Publication.ADMIN_ACTION) {
-                offerAdminAction++;
+                offerAdminAction.incrementAndGet();
             } else if (result == Publication.CLOSED) {
-                offerClosed++;
+                offerClosed.incrementAndGet();
             } else {
-                offerFailed++;
+                offerFailed.incrementAndGet();
             }
         }
 
+        private void recordSent() {
+            sentCount.incrementAndGet();
+        }
+
+        private void recordReceived() {
+            receivedCount.incrementAndGet();
+        }
+
         public long sentCount() {
-            return sentCount;
+            return sentCount.get();
         }
 
         public long receivedCount() {
-            return receivedCount;
+            return receivedCount.get();
         }
 
         public long offerBackPressure() {
-            return offerBackPressure;
+            return offerBackPressure.get();
         }
 
         public long offerNotConnected() {
-            return offerNotConnected;
+            return offerNotConnected.get();
         }
 
         public long offerAdminAction() {
-            return offerAdminAction;
+            return offerAdminAction.get();
         }
 
         public long offerClosed() {
-            return offerClosed;
+            return offerClosed.get();
         }
 
         public long offerFailed() {
-            return offerFailed;
+            return offerFailed.get();
         }
     }
 }
