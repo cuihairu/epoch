@@ -110,6 +110,7 @@ public final class AeronTransport implements Transport {
     private final UnsafeBuffer sendBuffer;
     private final IdleStrategy idleStrategy;
     private final AeronStats stats = new AeronStats();
+    private volatile boolean closed;
 
     public AeronTransport(AeronConfig config) {
         this(config, new RealAeronAdapter(config));
@@ -124,6 +125,9 @@ public final class AeronTransport implements Transport {
 
     @Override
     public void send(Engine.Message message) {
+        if (closed) {
+            throw new IllegalStateException("Aeron transport is closed");
+        }
         AeronMessageCodec.encode(sendBuffer, 0, message);
         int attempts = 0;
         long result;
@@ -143,7 +147,7 @@ public final class AeronTransport implements Transport {
 
     @Override
     public List<Engine.Message> poll(int max) {
-        if (max <= 0) {
+        if (closed || max <= 0) {
             return List.of();
         }
         int limit = Math.min(max, config.fragmentLimit());
@@ -160,6 +164,10 @@ public final class AeronTransport implements Transport {
 
     @Override
     public void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
         adapter.close();
     }
 

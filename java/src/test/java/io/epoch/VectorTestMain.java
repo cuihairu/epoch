@@ -95,6 +95,21 @@ public final class VectorTestMain {
             aeronTransport.close();
         }
 
+        // Closed transport guard: send throws, poll returns empty, close is idempotent.
+        AeronTransport.AeronConfig closedConfig = new AeronTransport.AeronConfig(
+            "aeron:ipc", 43, "", 64, 10, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
+        AeronTransport closedTransport = new AeronTransport(closedConfig, new FakeAeronAdapter());
+        closedTransport.close();
+        boolean sendAfterCloseFailed = false;
+        try {
+            closedTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 1));
+        } catch (IllegalStateException ex) {
+            sendAfterCloseFailed = true;
+        }
+        ensure(sendAfterCloseFailed, "AeronTransport send after close mismatch");
+        ensure(closedTransport.poll(1).isEmpty(), "AeronTransport poll after close mismatch");
+        closedTransport.close();
+
         AeronTransport.AeronConfig failingConfig = new AeronTransport.AeronConfig(
             "aeron:ipc", 42, "", 64, 2, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
         AeronTransport failingTransport = new AeronTransport(
