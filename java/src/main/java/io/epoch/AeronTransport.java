@@ -110,6 +110,7 @@ public final class AeronTransport implements Transport {
     private final UnsafeBuffer sendBuffer;
     private final IdleStrategy idleStrategy;
     private final AeronStats stats = new AeronStats();
+    private final Object closeLock = new Object();
     private volatile boolean closed;
 
     public AeronTransport(AeronConfig config) {
@@ -125,50 +126,56 @@ public final class AeronTransport implements Transport {
 
     @Override
     public void send(Engine.Message message) {
-        if (closed) {
-            throw new IllegalStateException("Aeron transport is closed");
-        }
-        AeronMessageCodec.encode(sendBuffer, 0, message);
-        int attempts = 0;
-        long result;
-        do {
-            result = adapter.offer(sendBuffer, 0, AeronMessageCodec.FRAME_LENGTH);
-            if (result >= 0) {
-                stats.sentCount++;
-                return;
+        synchronized (closeLock) {
+            if (closed) {
+                throw new IllegalStateException("Aeron transport is closed");
             }
-            stats.recordOfferFailure(result);
-            attempts++;
-            idleStrategy.idle();
-        } while (attempts < config.offerMaxAttempts());
+            AeronMessageCodec.encode(sendBuffer, 0, message);
+            int attempts = 0;
+            long result;
+            do {
+                result = adapter.offer(sendBuffer, 0, AeronMessageCodec.FRAME_LENGTH);
+                if (result >= 0) {
+                    stats.sentCount++;
+                    return;
+                }
+                stats.recordOfferFailure(result);
+                attempts++;
+                idleStrategy.idle();
+            } while (attempts < config.offerMaxAttempts());
 
-        throw new IllegalStateException("Aeron offer failed: " + result);
+            throw new IllegalStateException("Aeron offer failed: " + result);
+        }
     }
 
     @Override
     public List<Engine.Message> poll(int max) {
-        if (closed || max <= 0) {
-            return List.of();
-        }
-        int limit = Math.min(max, config.fragmentLimit());
-        List<Engine.Message> out = new ArrayList<>();
-        adapter.poll((DirectBuffer buffer, int offset, int length, Header header) -> {
-            if (length < AeronMessageCodec.FRAME_LENGTH) {
-                return;
+        synchronized (closeLock) {
+            if (closed || max <= 0) {
+                return List.of();
             }
-            out.add(AeronMessageCodec.decode(buffer, offset));
-            stats.receivedCount++;
-        }, limit);
-        return out;
+            int limit = Math.min(max, config.fragmentLimit());
+            List<Engine.Message> out = new ArrayList<>();
+            adapter.poll((DirectBuffer buffer, int offset, int length, Header header) -> {
+                if (length < AeronMessageCodec.FRAME_LENGTH) {
+                    return;
+                }
+                out.add(AeronMessageCodec.decode(buffer, offset));
+                stats.receivedCount++;
+            }, limit);
+            return out;
+        }
     }
 
     @Override
     public void close() {
-        if (closed) {
-            return;
+        synchronized (closeLock) {
+            if (closed) {
+                return;
+            }
+            adapter.close();
+            closed = true;
         }
-        adapter.close();
-        closed = true;
     }
 
     public AeronConfig config() {

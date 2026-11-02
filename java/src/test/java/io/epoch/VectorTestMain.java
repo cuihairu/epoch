@@ -4,6 +4,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class VectorTestMain {
     public static void main(String[] args) throws Exception {
@@ -134,6 +136,30 @@ public final class VectorTestMain {
         retryCloseTransport.close();
         ensure(retryCloseAdapter.closeAttempts == 2, "AeronTransport close retry attempts mismatch");
 
+        // Concurrent send + close: close must wait for in-flight send to finish.
+        AeronTransport.AeronConfig raceConfig = new AeronTransport.AeronConfig(
+            "aeron:ipc", 45, "", 64, 10, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
+        FakeAeronAdapter raceAdapter = new FakeAeronAdapter();
+        raceAdapter.blockOffer.set(true);
+        raceAdapter.blockClose.set(true);
+        AeronTransport raceTransport = new AeronTransport(raceConfig, raceAdapter);
+        Thread sender = new Thread(() -> {
+            try {
+                raceTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 1));
+            } catch (RuntimeException ignored) {
+            }
+        });
+        sender.start();
+        raceAdapter.offerStarted.await();
+        Thread closer = new Thread(raceTransport::close);
+        closer.start();
+        ensure(!raceAdapter.closeStarted.await(50, java.util.concurrent.TimeUnit.MILLISECONDS),
+            "AeronTransport close should wait for in-flight send");
+        raceAdapter.releaseOffer.countDown();
+        sender.join();
+        closer.join();
+        ensure(raceAdapter.closeAttempts == 1, "AeronTransport close after concurrent send mismatch");
+
         AeronTransport.AeronConfig failingConfig = new AeronTransport.AeronConfig(
             "aeron:ipc", 42, "", 64, 2, new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false);
         AeronTransport failingTransport = new AeronTransport(
@@ -207,6 +233,11 @@ public final class VectorTestMain {
     private static final class FakeAeronAdapter implements AeronTransport.AeronAdapter {
         private final List<byte[]> frames = new ArrayList<>();
         private final List<Long> offerResults = new ArrayList<>();
+        private final CountDownLatch closeStarted = new CountDownLatch(1);
+        private final AtomicBoolean blockClose = new AtomicBoolean(false);
+        private final CountDownLatch offerStarted = new CountDownLatch(1);
+        private final CountDownLatch releaseOffer = new CountDownLatch(1);
+        private final AtomicBoolean blockOffer = new AtomicBoolean(false);
         private int closeAttempts;
         private boolean failFirstClose;
 
@@ -218,6 +249,14 @@ public final class VectorTestMain {
 
         @Override
         public long offer(org.agrona.DirectBuffer buffer, int offset, int length) {
+            if (blockOffer.get()) {
+                offerStarted.countDown();
+                try {
+                    releaseOffer.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             if (!offerResults.isEmpty()) {
                 long result = offerResults.remove(0);
                 if (result < 0) {
@@ -243,6 +282,14 @@ public final class VectorTestMain {
 
         @Override
         public void close() {
+            if (blockClose.get()) {
+                closeStarted.countDown();
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             closeAttempts++;
             if (failFirstClose && closeAttempts == 1) {
                 throw new IllegalStateException("AeronTransport close failure mismatch");
