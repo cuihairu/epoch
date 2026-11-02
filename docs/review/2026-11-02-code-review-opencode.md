@@ -90,3 +90,42 @@
 - commit 清单：
   - `docs: add code review report` — 本报告落地 `docs/review/2026-11-02-code-review-opencode.md`
   - `docs: record code review findings in todo` — F3 新发现转 todo 登记
+
+---
+
+## 独立审核意见（2026-11-02）
+
+> 审核员：异模型独立审核（干净上下文，不信任本报告），逐条打开源码对照、复跑相关测试、抽查报告未覆盖的高危面。
+> 审核基准：本报告落库点 commit `82ac075`；当前 HEAD 已含后续提交 `e2d578a`、`2a7b622`、`06d20c1`。
+
+### 一、逐条真实性判定（3 条，核验 3 / 证伪 0）
+
+| 发现 | 报告证据（file:line） | 打开源码对照结果 | 判定 |
+|---|---|---|---|
+| F1 · C++ 构造器泄漏 | `cpp/src/aeron_transport.cpp:164-176`（`context_=context` 延迟至 :171、`client_=client` 延迟至 :176） | **属实（写作时）**：`82ac075` 时点源码确为延迟赋值；**已修复**：`2a7b622 fix(cpp): release aeron resources on constructor failure` 已把 `context_=context` 移至 :166、`client_=client` 移至 :175（紧跟分配）；ctest 3/3 复跑绿，`aeron_transport_test.cpp:375 test_aeron_init_failure_cleans_up`、`:404 test_aeron_start_failure_cleans_up` 直接断言 init/start 失败后 context/client 仍被释放 | 真实发现，**现已修复**；报告「未修」状态过时（非证伪） |
+| F2 · Node 64-bit 精度 | `node/src/index.ts:4-12`（`number`）、`:88`（`BigInt()`）、`:105`（`Number()`） | **属实且仍存**：当前源码字段仍为 `number`、encode 仍 `BigInt(message.epoch)`、decode 仍 `Number(readBigInt64LE)`；`node --test` 11/11 复跑绿，但测试向量 sourceId<2^53（`test-vectors/epoch_vector_v1.txt`）不触发精度问题，故测试绿不证明已修 | 真实发现，**仍开放**（BLOCKED 待设计拍板，与 todo 一致） |
+| F3 · Java 关闭守卫 | `java/.../AeronTransport.java:114-166`（无 `closed`、send/poll/close 无守卫） | **属实（写作时）**：`82ac075` 时点源码确无守卫；**已修复**：`06d20c1 fix(java): guard aeron transport operations after close` 已加 `private volatile boolean closed`（:113）、send 抛 `IllegalStateException`、poll 返回空、close 幂等；`run-tests.sh` 复跑 exit=0，`VectorTestMain.java:98-111` 直接断言 send-after-close 抛异常 / poll-after-close 空 / close 幂等 | 真实发现，**现已修复**；报告「未修」状态过时（非证伪） |
+
+- **0 证伪**：3 条发现的 file:line 证据与报告落库点源码全部吻合，无一条系不实证据。
+- **「已修 0 / 剩余 3」总结已过时**：报告落库后 3 个提交（`2a7b622`、`06d20c1`、`e2d578a`）落在其上，实际状态为**已修 2 / 剩余 1**（F1、F3 已修；F2 仍开放）。此为时间点差异，非报告造假。
+
+### 二、声称已修 P0/P1 核验
+
+- 报告称「P0：0 / P1：0 / P0/P1 当场修：无适用项，0 commit」。核实：F1/F2/F3 均 P2，无 P0/P1 项，声明属实；0 个 P0/P1 修复 commit 属实（后补的 `2a7b622`/`06d20c1` 属 P2 修复，非 P0/P1 当场修）。
+
+### 三、漏网发现（高危面抽查 · 1 项，P2）
+
+报告覆盖了 F1（C++ 构造器泄漏）、F3（Java 无关闭守卫），但未覆盖下列资源释放面问题：
+
+- **M1 · P2 —— Java `close()` 部分释放后不可重试**：`AeronTransport.close()` 先 `closed = true`（:170）再 `adapter.close()`（:171）；`RealAeronAdapter.close()` 依次执行 `publication.close()`（:99）→ `subscription.close()`（:100）→ `aeron.close()`（:101）→ `mediaDriver.close()`（:103），各步可抛异常。若任一步抛异常，其后资源不释放，且 `closed` 已为 true 使再次 `close()` 直接返回（:168-169），泄漏无法重试。触发：`Aeron`/`MediaDriver` 关闭失败（驱动异常、目录锁等）。
+  - **Java 特有**：Go（`go/aeron_transport.go:194`）、.NET（`dotnet/AeronTransport.cs:75`）、Node（`node/src/index.ts:181`）、Python 均为「置位后调**单次** C `epoch_aeron_close`」（C 调用不抛），无部分释放风险；仅 Java 是语言级多步 close。
+  - 严重度 P2（错误路径资源释放，与 F1 同类；触发概率低于 F1）。
+  - 建议修法：`try { adapter.close(); } finally { closed = true; }`（或 `finally` 内置位），保证抛异常时仍可重试。
+
+### 四、总评（可信度）
+
+- **核验 3 条 / 证伪 0 / 漏网 1**。
+- **质量门声明可复现**：C++ ctest 3/3、Go `go test -count=1` ok、Python 10/10、Node 11/11、Java `run-tests.sh` exit=0，全部复跑绿；.NET 构建绿（测试因缺 net8.0 运行时未执行）为环境限制，报告如实披露。
+- **安全 6 类无翻案**：抽查认证面（全仓源码无 password/credential/token/session/login/auth 命中——本仓为运行时库，无认证面，属 N/A）；输入处理面（native C `epoch_aeron.c:296`、Go `aeron_transport.go:127`、Python `aeron_transport.py:55`、Node `index.ts:96`、C++ `aeron_transport.cpp:56`、Java `poll` 内 length 检查，帧长度检查全部有界，encode 写固定 56B 缓冲，无越界）；资源释放面（见漏网 M1）。
+- **可信度：95%**。3/3 发现证据全实、0 证伪；质量门 5 语言复跑可复现；安全抽查无翻案。扣 5%：①「已修 0/剩余 3」及 F1/F3「未修」陈述被报告落库后 3 个提交超越、未同步（时效性问题，非证据造假）；②资源释放面漏 1 项（M1）。
+- **结论**：本报告**真实、可信、可复现**——3 项发现均为真实缺陷、证据准确、无证伪；安全扫描结论成立；质量门基线可复现。需修正：同步 F1/F3 已修状态（工作区 `todo.md` 已改，未提交）；补记漏网 M1。
