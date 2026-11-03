@@ -141,7 +141,7 @@ public final class VectorTestMain {
         // Partial close failure: adapter releases some resources then throws; transport must
         // keep operations blocked yet allow a retry to release the remaining resources.
         FakeAeronAdapter partialCloseAdapter = new FakeAeronAdapter();
-        partialCloseAdapter.failPartialClose = true;
+        partialCloseAdapter.failAfterResources = 1;
         AeronTransport partialCloseTransport = new AeronTransport(retryCloseConfig, partialCloseAdapter);
         boolean partialCloseFailed = false;
         try {
@@ -162,9 +162,44 @@ public final class VectorTestMain {
         ensure(partialCloseTransport.poll(1).isEmpty(), "AeronTransport should poll empty after partial close");
         partialCloseTransport.close();
         ensure(partialCloseAdapter.closeAttempts == 2, "AeronTransport should retry partial close");
+        ensure(partialCloseAdapter.publicationsReleased == 1, "AeronTransport partial retry should not duplicate publication close");
         ensure(partialCloseAdapter.subscriptionsReleased == 1, "AeronTransport partial retry should release remaining");
+        ensure(partialCloseAdapter.aeronsReleased == 1, "AeronTransport partial retry should release aeron");
+        ensure(partialCloseAdapter.mediaDriversReleased == 1, "AeronTransport partial retry should release media driver");
         partialCloseTransport.close();
         ensure(partialCloseAdapter.closeAttempts == 2, "AeronTransport close idempotent after partial retry");
+
+        // Partial close failures at subscription, Aeron client, and media-driver stages retry only
+        // resources that remain open.
+        int[] partialCloseStages = {2, 3, 4};
+        int[] stagePublications = {1, 1, 1};
+        int[] stageSubscriptions = {1, 1, 1};
+        int[] stageAerons = {1, 1, 1};
+        int[] stageMediaDrivers = {1, 1, 1};
+        for (int stageIndex = 0; stageIndex < partialCloseStages.length; stageIndex++) {
+            FakeAeronAdapter stagedAdapter = new FakeAeronAdapter();
+            stagedAdapter.failAfterResources = partialCloseStages[stageIndex];
+            AeronTransport stagedTransport = new AeronTransport(retryCloseConfig, stagedAdapter);
+            boolean stagedCloseFailed = false;
+            try {
+                stagedTransport.close();
+            } catch (IllegalStateException ex) {
+                stagedCloseFailed = true;
+            }
+            ensure(stagedCloseFailed, "AeronTransport staged close should fail");
+            stagedTransport.close();
+            ensure(stagedAdapter.closeAttempts == 2, "AeronTransport staged close should retry once");
+            ensure(stagedAdapter.publicationsReleased == stagePublications[stageIndex],
+                "AeronTransport staged publication release mismatch");
+            ensure(stagedAdapter.subscriptionsReleased == stageSubscriptions[stageIndex],
+                "AeronTransport staged subscription release mismatch");
+            ensure(stagedAdapter.aeronsReleased == stageAerons[stageIndex],
+                "AeronTransport staged aeron release mismatch");
+            ensure(stagedAdapter.mediaDriversReleased == stageMediaDrivers[stageIndex],
+                "AeronTransport staged media driver release mismatch");
+            stagedTransport.close();
+            ensure(stagedAdapter.closeAttempts == 2, "AeronTransport staged close should be idempotent");
+        }
 
         // Concurrent send + close: close must wait for in-flight send to finish.
         AeronTransport.AeronConfig raceConfig = new AeronTransport.AeronConfig(
@@ -232,6 +267,32 @@ public final class VectorTestMain {
         } finally {
             failingTransport.close();
         }
+
+        // Real Aeron adapter idempotent re-close: the partial-close retry path in
+        // AeronTransport.close() assumes RealAeronAdapter.close() can be called again
+        // after a partial release (publication/subscription/aeron/mediaDriver each
+        // close idempotently). Drive the real embedded Aeron stack directly and close
+        // the adapter twice, asserting no exception on the repeated close.
+        AeronTransport.AeronConfig realConfig = new AeronTransport.AeronConfig(
+            "aeron:ipc", 46, "", 64, 10, new org.agrona.concurrent.BusySpinIdleStrategy(), true, true, true);
+        AeronTransport.RealAeronAdapter realAdapter = new AeronTransport.RealAeronAdapter(realConfig);
+        realAdapter.close();
+        realAdapter.close();
+        realAdapter.close();
+
+        // Transport-level contract still holds: after a successful close the adapter is
+        // fully released and a second transport close is a no-op.
+        AeronTransport realTransport = new AeronTransport(realConfig);
+        realTransport.close();
+        ensure(realTransport.poll(1).isEmpty(), "Real Aeron transport poll after close mismatch");
+        boolean realSendAfterCloseFailed = false;
+        try {
+            realTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 9));
+        } catch (IllegalStateException ex) {
+            realSendAfterCloseFailed = true;
+        }
+        ensure(realSendAfterCloseFailed, "Real Aeron transport send after close mismatch");
+        realTransport.close();
 
         Path vector = locateVectorFile();
         List<Engine.Message> messages = new ArrayList<>();
@@ -308,9 +369,15 @@ public final class VectorTestMain {
         private final AtomicBoolean blockPoll = new AtomicBoolean(false);
         private int closeAttempts;
         private boolean failFirstClose;
-        private boolean failPartialClose;
+        private int failAfterResources = -1;
         private int publicationsReleased;
         private int subscriptionsReleased;
+        private int aeronsReleased;
+        private int mediaDriversReleased;
+        private boolean publicationClosed;
+        private boolean subscriptionClosed;
+        private boolean aeronClosed;
+        private boolean mediaDriverClosed;
 
         FakeAeronAdapter(long... results) {
             for (long result : results) {
@@ -373,12 +440,34 @@ public final class VectorTestMain {
             if (failFirstClose && closeAttempts == 1) {
                 throw new IllegalStateException("AeronTransport close failure mismatch");
             }
-            if (failPartialClose && closeAttempts == 1) {
+            if (!publicationClosed) {
                 publicationsReleased++;
+                publicationClosed = true;
+            }
+            if (failAfterResources == 1 && closeAttempts == 1) {
                 throw new IllegalStateException("AeronTransport partial close failure mismatch");
             }
-            publicationsReleased++;
-            subscriptionsReleased++;
+            if (!subscriptionClosed) {
+                subscriptionsReleased++;
+                subscriptionClosed = true;
+            }
+            if (failAfterResources == 2 && closeAttempts == 1) {
+                throw new IllegalStateException("AeronTransport partial close failure mismatch");
+            }
+            if (!aeronClosed) {
+                aeronsReleased++;
+                aeronClosed = true;
+            }
+            if (failAfterResources == 3 && closeAttempts == 1) {
+                throw new IllegalStateException("AeronTransport partial close failure mismatch");
+            }
+            if (!mediaDriverClosed) {
+                mediaDriversReleased++;
+                mediaDriverClosed = true;
+            }
+            if (failAfterResources == 4 && closeAttempts == 1) {
+                throw new IllegalStateException("AeronTransport partial close failure mismatch");
+            }
             frames.clear();
         }
     }

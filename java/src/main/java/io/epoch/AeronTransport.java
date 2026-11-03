@@ -55,13 +55,17 @@ public final class AeronTransport implements Transport {
         void close();
     }
 
-    private static final class RealAeronAdapter implements AeronAdapter {
+    static final class RealAeronAdapter implements AeronAdapter {
         private final Aeron aeron;
         private final Publication publication;
         private final Subscription subscription;
         private final MediaDriver mediaDriver;
+        private boolean publicationClosed;
+        private boolean subscriptionClosed;
+        private boolean aeronClosed;
+        private boolean mediaDriverClosed;
 
-        private RealAeronAdapter(AeronConfig config) {
+        RealAeronAdapter(AeronConfig config) {
             MediaDriver driver = null;
             String aeronDir = config.aeronDirectory();
             if (config.embeddedDriver()) {
@@ -96,12 +100,22 @@ public final class AeronTransport implements Transport {
         }
 
         @Override
-        public void close() {
-            publication.close();
-            subscription.close();
-            aeron.close();
-            if (mediaDriver != null) {
+        public synchronized void close() {
+            if (!publicationClosed) {
+                publication.close();
+                publicationClosed = true;
+            }
+            if (!subscriptionClosed) {
+                subscription.close();
+                subscriptionClosed = true;
+            }
+            if (!aeronClosed) {
+                aeron.close();
+                aeronClosed = true;
+            }
+            if (mediaDriver != null && !mediaDriverClosed) {
                 mediaDriver.close();
+                mediaDriverClosed = true;
             }
         }
     }
@@ -172,7 +186,7 @@ public final class AeronTransport implements Transport {
     @Override
     public void close() {
         synchronized (closeLock) {
-            if (closed && released) {
+            if (released) {
                 return;
             }
             closed = true;
