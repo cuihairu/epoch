@@ -134,7 +134,37 @@ public final class VectorTestMain {
         ensure(sendAfterFailedCloseBlocked, "AeronTransport should close state after failed close");
         ensure(retryCloseTransport.poll(1).isEmpty(), "AeronTransport should poll empty after failed close");
         retryCloseTransport.close();
-        ensure(retryCloseAdapter.closeAttempts == 1, "AeronTransport close retry attempts mismatch");
+        ensure(retryCloseAdapter.closeAttempts == 2, "AeronTransport close retry attempts mismatch");
+        retryCloseTransport.close();
+        ensure(retryCloseAdapter.closeAttempts == 2, "AeronTransport close should be idempotent after success");
+
+        // Partial close failure: adapter releases some resources then throws; transport must
+        // keep operations blocked yet allow a retry to release the remaining resources.
+        FakeAeronAdapter partialCloseAdapter = new FakeAeronAdapter();
+        partialCloseAdapter.failPartialClose = true;
+        AeronTransport partialCloseTransport = new AeronTransport(retryCloseConfig, partialCloseAdapter);
+        boolean partialCloseFailed = false;
+        try {
+            partialCloseTransport.close();
+        } catch (IllegalStateException ex) {
+            partialCloseFailed = true;
+        }
+        ensure(partialCloseFailed, "AeronTransport partial close should fail");
+        ensure(partialCloseAdapter.publicationsReleased == 1, "AeronTransport partial release mismatch");
+        ensure(partialCloseAdapter.subscriptionsReleased == 0, "AeronTransport partial release should not release subscription");
+        boolean sendAfterPartialCloseBlocked = false;
+        try {
+            partialCloseTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 7));
+        } catch (IllegalStateException ex) {
+            sendAfterPartialCloseBlocked = true;
+        }
+        ensure(sendAfterPartialCloseBlocked, "AeronTransport should block send after partial close");
+        ensure(partialCloseTransport.poll(1).isEmpty(), "AeronTransport should poll empty after partial close");
+        partialCloseTransport.close();
+        ensure(partialCloseAdapter.closeAttempts == 2, "AeronTransport should retry partial close");
+        ensure(partialCloseAdapter.subscriptionsReleased == 1, "AeronTransport partial retry should release remaining");
+        partialCloseTransport.close();
+        ensure(partialCloseAdapter.closeAttempts == 2, "AeronTransport close idempotent after partial retry");
 
         // Concurrent send + close: close must wait for in-flight send to finish.
         AeronTransport.AeronConfig raceConfig = new AeronTransport.AeronConfig(
@@ -278,6 +308,9 @@ public final class VectorTestMain {
         private final AtomicBoolean blockPoll = new AtomicBoolean(false);
         private int closeAttempts;
         private boolean failFirstClose;
+        private boolean failPartialClose;
+        private int publicationsReleased;
+        private int subscriptionsReleased;
 
         FakeAeronAdapter(long... results) {
             for (long result : results) {
@@ -340,6 +373,12 @@ public final class VectorTestMain {
             if (failFirstClose && closeAttempts == 1) {
                 throw new IllegalStateException("AeronTransport close failure mismatch");
             }
+            if (failPartialClose && closeAttempts == 1) {
+                publicationsReleased++;
+                throw new IllegalStateException("AeronTransport partial close failure mismatch");
+            }
+            publicationsReleased++;
+            subscriptionsReleased++;
             frames.clear();
         }
     }

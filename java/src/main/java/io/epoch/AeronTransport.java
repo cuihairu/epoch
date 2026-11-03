@@ -113,6 +113,7 @@ public final class AeronTransport implements Transport {
     private final AeronStats stats = new AeronStats();
     private final Object closeLock = new Object();
     private volatile boolean closed;
+    private volatile boolean released;
 
     public AeronTransport(AeronConfig config) {
         this(config, new RealAeronAdapter(config));
@@ -171,14 +172,12 @@ public final class AeronTransport implements Transport {
     @Override
     public void close() {
         synchronized (closeLock) {
-            if (closed) {
+            if (closed && released) {
                 return;
             }
-            try {
-                adapter.close();
-            } finally {
-                closed = true;
-            }
+            closed = true;
+            adapter.close();
+            released = true;
         }
     }
 
