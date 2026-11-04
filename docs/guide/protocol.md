@@ -22,7 +22,7 @@
 - 默认布局（高位到低位）：
   - `region(10) | server(12) | processType(6) | processIndex(10) | actorIndex(26)`
 - 解析规则可替换：实现 Codec 接口（encode/decode/name）即可切换（C++/Go/Python/Node.js 名为 `ActorIdCodec`，Java 为 `ActorId.Codec`，.NET 为 `IActorIdCodec`）
-- Node.js 需要用 `BigInt` 保存完整 64-bit
+- Node.js 需要用 `BigInt` 保存完整 64-bit（现状：`Message` 字段仍为 `number`，超出安全整数范围会先丢精度，`node/src/index.ts:88-112`；bigint 迁移为破坏性变更，待设计拍板）
 
 ## 传输实现原则
 - Java：独立实现 Transport（官方 Aeron 客户端）
