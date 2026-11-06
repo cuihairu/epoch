@@ -21,7 +21,7 @@
 
 ## 待办（P2，记 todo）
 - [x] 修复 C++ AeronTransport 构造器异常路径资源泄漏（context_/client_ 提前赋值使 catch 路径正确释放；新增 init/start 失败清理测试；ctest 3/3 绿）
-- [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）【BLOCKED：改 bigint 为破坏性 API 变更，需设计拍板；缺设计拍板（确认是否接受破坏性 API 变更）→ 本轮跳过，待拍板后处理；2026-11-04 复核：源码仍为 number（node/src/index.ts:88-112），docs/review/2026-11-02-code-review-opencode.md:49、:106 确认需 bigint 破坏性变更，设计拍板仍缺→保留 BLOCKED 不重试；2026-11-06 复核：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用，设计拍板仍缺→保留 BLOCKED 不重试】
+- [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）【BLOCKED：改 bigint 为破坏性 API 变更，需设计拍板；缺设计拍板（确认是否接受破坏性 API 变更）→ 本轮跳过，待拍板后处理；2026-11-04 复核：源码仍为 number（node/src/index.ts:88-112），docs/review/2026-11-02-code-review-opencode.md:49、:106 确认需 bigint 破坏性变更，设计拍板仍缺→保留 BLOCKED 不重试；2026-11-06 复核：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用，设计拍板仍缺→保留 BLOCKED 不重试；本轮复核（2026-11-06）：源码与上一致、全仓仍无设计拍板记录（rg 拍板/bigint 仅注记无决策）→缺设计拍板，保持未勾 BLOCKED 不重试】
 - [x] Java AeronTransport 补充关闭状态守卫（volatile closed：send 后抛异常、poll 后空、close 幂等；run-tests.sh 绿）
 
 ## 审核发现
