@@ -21,7 +21,7 @@
 
 ## 待办（P2，记 todo）
 - [x] 修复 C++ AeronTransport 构造器异常路径资源泄漏（context_/client_ 提前赋值使 catch 路径正确释放；新增 init/start 失败清理测试；ctest 3/3 绿）
-- [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）【BLOCKED：改 bigint 为破坏性 API 变更，需设计拍板；缺设计拍板（确认是否接受破坏性 API 变更）→ 本轮跳过，待拍板后处理；2026-11-04 复核：源码仍为 number（node/src/index.ts:88-112），docs/review/2026-11-02-code-review-opencode.md:49、:106 确认需 bigint 破坏性变更，设计拍板仍缺→保留 BLOCKED 不重试】
+- [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）【BLOCKED：改 bigint 为破坏性 API 变更，需设计拍板；缺设计拍板（确认是否接受破坏性 API 变更）→ 本轮跳过，待拍板后处理；2026-11-04 复核：源码仍为 number（node/src/index.ts:88-112），docs/review/2026-11-02-code-review-opencode.md:49、:106 确认需 bigint 破坏性变更，设计拍板仍缺→保留 BLOCKED 不重试；2026-11-06 复核：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用，设计拍板仍缺→保留 BLOCKED 不重试】
 - [x] Java AeronTransport 补充关闭状态守卫（volatile closed：send 后抛异常、poll 后空、close 幂等；run-tests.sh 绿）
 
 ## 审核发现
@@ -68,3 +68,4 @@
 - [x] 审核发现：第 66 行以 40 位全哈希 23c488506b8e0f9bad232fd4b91da070440f8039 引用提交，违背「审核发现」节既有 7 位短哈希约定（todo.md:50 已定该约定并明确「使用 7 位短哈希」），与 :64-:65 同类——属实：已改第 66 行哈希为 7 位 23c4885，并同批将 :64-:65 全哈希规范为 7 位（a7f1fd5、664ada7）；todo.md:66；todo.md:50
 - [x] 审核发现：本 diff 将 :64-:66 证据哈希规范化时，:65 区间端点与证据哈希仍用 8 位「664ada7a」（该提交 7 位缩写实为「664ada7」），且 :68 自述「规范为 7 位（a7f1fd5、664ada7a）」所列「664ada7a」实为 8 位，与 todo.md:50 既定「使用 7 位短哈希」约定不符（todo.md:65、:68）——属实：已将 :64-:68 全部 8 位哈希规范为 7 位（c7431ca0→c7431ca、a7f1fd52→a7f1fd5、664ada7a→664ada7），并同步更新 :67-:68 相应描述；todo.md:64-68；todo.md:50；git rev-parse --short=7 实测 c7431ca0→c7431ca、a7f1fd52→a7f1fd5、664ada7a→664ada7
 - [x] 审核发现：:67 修复陈述「现 HEAD 实测含 2 个提交（9ad2235、23c4885）」仍以移动引用 HEAD 为基准——该行所在提交 a60dd3d 亦落入 664ada7..HEAD，现 664ada7..a60dd3d 实测含 3 个提交（a60dd3d、9ad2235、23c4885），与「含 2 个」不符，证据不可复现且自指，与本行所述 :66 旧证据问题同型复发（todo.md:67）——属实：已改 :67 该陈述为固定端点「现 664ada7..9ad2235 实测含 2 个提交（9ad2235、23c4885）」，实测 git rev-list 664ada7..9ad2235 返回 9ad2235、23c4885（共 2 个），可复现且不再自指；todo.md:67
+- [x] 审核发现：本轮 diff 未见问题（a60dd3d..62c1bb6）。证据：git rev-list a60dd3d..62c1bb6 提交清单仅含 62c1bb6（共 1 个），逐项复查该提交 diff 未见问题；原行区间端点 a60dd3dd 为 8 位且 HEAD 为移动引用，已实测 git rev-parse --short=7 a60dd3d 返回 a60dd3d，并改为 7 位固定端点 a60dd3d..62c1bb6，符合 todo.md:50 约定。
