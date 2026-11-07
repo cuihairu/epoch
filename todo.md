@@ -71,3 +71,23 @@
 - [x] 审核发现：本轮 diff 未见问题（a60dd3d..62c1bb6）。证据：git rev-list a60dd3d..62c1bb6 提交清单仅含 62c1bb6（共 1 个），逐项复查该提交 diff 未见问题（仅 todo.md 追加勾选记录，无代码改动）；区间端点 a60dd3d..62c1bb6 为 7 位固定端点，符合 todo.md:50 约定。
 - [x] 审核发现：本轮 diff 未见问题（62c1bb6..6a8b6d8）。证据：git rev-list 62c1bb6..6a8b6d8 提交清单仅含 6a8b6d8（共 1 个），逐项复查该提交 diff 未见问题（仅 todo.md：为 Node bigint BLOCKED 项追加 2026-11-06 复核注记并新增上一条审计记录，无代码改动）；区间端点 62c1bb6..6a8b6d8 为 7 位固定端点，符合 todo.md:50 约定；pnpm run docs:build 绿 18 页；ctest 3/3、go test ok、python unittest 10/10、node test 11/11、java exit 0、dotnet test 8/8（DOTNET_ROLL_FORWARD=Major）全绿
 - [x] 审核发现：本轮 diff（6a8b6d8..HEAD，仅 a511f84 纯新增 :72）自述「原行区间端点 62c1bb6a 为 8 位且 HEAD 为移动引用…改为 7 位固定端点 62c1bb6..6a8b6d8」，但该行本为纯新增（git show a511f84 仅 +1 行），父提交 6a8b6d8 的 todo.md 止于 :71 且全文件无「62c1bb6a」（git grep 实测 0 处），所叙「原行…改为」改动不存在于本 diff、不可从 git 历史复现，属 :66-:70 已定「证据不可复现/自指」缺陷同型——属实：已改 :72（并同批 :71 同类「原行…改为」伪述）为纯新增行的真实证据（无原行可改），todo.md:71-72；git show a511f84 仅 +1 行、git grep -n 62c1bb6a 6a8b6d8 实测 0 处；pnpm run docs:build 绿 18 页；ctest 3/3、go test ok、python unittest 10/10、node test 11/11、java exit 0、dotnet test 8/8（DOTNET_ROLL_FORWARD=Major）全绿
+- [ ] 审核发现：以 HEAD 为终点的 6a8b6d8..HEAD 区间现包含后续提交，故该区间「仅 a511f84」的描述不可复现（todo.md:73）
+
+## 源码分层分析 2026-11-07
+
+### 抽象层清单
+
+- L1 协议与身份：统一定义七字段消息、ActorId 位布局和可替换 codec——代表 `cpp/include/epoch/engine.h:9`、`cpp/include/epoch/actor_id.h:15`。
+- L2 确定性 Epoch 处理：按固定五元组排序并折叠 payload，输出 `EpochResult` 和 FNV stateHash——代表 `java/src/main/java/io/epoch/Engine.java:56`。
+- L3 传输边界与本地队列：约束 send/poll/close 生命周期；本地 FIFO 只留在进程内存——代表 `cpp/include/epoch/transport.h:11`。
+- L4 Aeron 投递适配器：把传输契约桥接到 Aeron publication/subscription、重试、fragment 解码和帧编解码——代表 `cpp/src/aeron_transport.cpp:223`。
+- L5 原生 Aeron 网关：用不透明 C 对象和五函数 ABI 集中管理 Aeron C client 状态——代表 `native/include/epoch_aeron.h:37`。
+- L6 跨语言验证与打包：共享向量、各语言 harness、coverage、native/语言制品构建与发布生命周期——代表 `test-vectors/epoch_vector_v1.txt:1`、`.github/workflows/nightly.yml:18`。
+
+### 超大文件候选
+
+无 >1000 行文件（tracked 源码最大文件为 `java/src/test/java/io/epoch/VectorTestMain.java`，516 行）。
+
+### 目录/分类问题
+
+- 未见分类问题。`cpp/include`/`cpp/src` 与各语言包名只承载实现入口；实际跨语言契约由共享头/头文件、协议文档和测试向量约束。
