@@ -84,6 +84,23 @@ class VectorTest(unittest.TestCase):
         decoded = epoch.decode_actor_id(value)
         self.assertEqual(decoded, parts)
 
+    def test_actor_id_rejects_each_out_of_range_part(self):
+        invalid_parts = [
+            epoch.ActorIdParts(-1, 1, 1, 1, 1),
+            epoch.ActorIdParts(1 << 10, 1, 1, 1, 1),
+            epoch.ActorIdParts(1, -1, 1, 1, 1),
+            epoch.ActorIdParts(1, 1 << 12, 1, 1, 1),
+            epoch.ActorIdParts(1, 1, -1, 1, 1),
+            epoch.ActorIdParts(1, 1, 1 << 6, 1, 1),
+            epoch.ActorIdParts(1, 1, 1, -1, 1),
+            epoch.ActorIdParts(1, 1, 1, 1 << 10, 1),
+            epoch.ActorIdParts(1, 1, 1, 1, -1),
+            epoch.ActorIdParts(1, 1, 1, 1, 1 << 26),
+        ]
+        for parts in invalid_parts:
+            with self.assertRaises(ValueError):
+                epoch.encode_actor_id(parts)
+
 
 def locate_vector_file() -> str:
     current = os.path.abspath(".")

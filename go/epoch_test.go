@@ -147,10 +147,10 @@ func TestCompareMessage(t *testing.T) {
 	if compareMessage(Message{Epoch: 1, ChannelID: 1, SourceID: 2, Qos: 1}, base) <= 0 {
 		t.Fatalf("expected source compare reverse")
 	}
-	if compareMessage(base, Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2}) >= 0 {
+	if compareMessage(base, Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2, Qos: 1}) >= 0 {
 		t.Fatalf("expected seq compare")
 	}
-	if compareMessage(Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2, Qos: 1}, base) <= 0 {
+	if compareMessage(Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 2, Qos: 1}, Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 1, Qos: 1}) <= 0 {
 		t.Fatalf("expected seq compare reverse")
 	}
 	if compareMessage(base, Message{Epoch: 1, ChannelID: 1, Qos: 2}) <= 0 {

@@ -40,6 +40,18 @@ struct StubState {
     bool init_fail = false;
     bool start_fail = false;
     bool context_set_dir_fail = false;
+    bool add_publication_fail = false;
+    bool add_subscription_fail = false;
+    int publication_poll_fail_after = -1;
+    int subscription_poll_fail_after = -1;
+    bool async_pub_poll_zero_first = false;
+    bool async_sub_poll_zero_first = false;
+    bool publication_null = false;
+    bool subscription_null = false;
+    int publication_poll_calls = 0;
+    int subscription_poll_calls = 0;
+    bool poll_fail = false;
+    std::size_t next_frame_length = 0;
 };
 
 StubState *g_state = nullptr;
@@ -102,6 +114,10 @@ int stub_start(aeron_t *)
 int stub_async_add_publication(aeron_async_add_publication_t **async, aeron_t *, const char *, int32_t)
 {
     static int dummy = 0;
+    if (g_state != nullptr && g_state->add_publication_fail)
+    {
+        return -1;
+    }
     *async = reinterpret_cast<aeron_async_add_publication_t *>(&dummy);
     return 0;
 }
@@ -112,6 +128,21 @@ int stub_async_add_publication_poll(aeron_publication_t **publication, aeron_asy
     if (g_state != nullptr)
     {
         g_state->async_pub_poll_calls++;
+        if (g_state->publication_poll_fail_after >= 0 &&
+            g_state->async_pub_poll_calls > g_state->publication_poll_fail_after)
+        {
+            return -1;
+        }
+        if (g_state->publication_null)
+        {
+            *publication = nullptr;
+            return 1;
+        }
+        if (g_state->async_pub_poll_zero_first)
+        {
+            g_state->async_pub_poll_zero_first = false;
+            return 0;
+        }
     }
     *publication = reinterpret_cast<aeron_publication_t *>(&dummy);
     return 1;
@@ -127,6 +158,10 @@ int stub_async_add_subscription(aeron_async_add_subscription_t **async,
                                 void *)
 {
     static int dummy = 0;
+    if (g_state != nullptr && g_state->add_subscription_fail)
+    {
+        return -1;
+    }
     *async = reinterpret_cast<aeron_async_add_subscription_t *>(&dummy);
     return 0;
 }
@@ -137,6 +172,21 @@ int stub_async_add_subscription_poll(aeron_subscription_t **subscription, aeron_
     if (g_state != nullptr)
     {
         g_state->async_sub_poll_calls++;
+        if (g_state->subscription_poll_fail_after >= 0 &&
+            g_state->async_sub_poll_calls > g_state->subscription_poll_fail_after)
+        {
+            return -1;
+        }
+        if (g_state->subscription_null)
+        {
+            *subscription = nullptr;
+            return 1;
+        }
+        if (g_state->async_sub_poll_zero_first)
+        {
+            g_state->async_sub_poll_zero_first = false;
+            return 0;
+        }
     }
     *subscription = reinterpret_cast<aeron_subscription_t *>(&dummy);
     return 1;
@@ -157,7 +207,7 @@ std::int64_t stub_publication_offer(
     {
         auto result = g_state->offer_results.front();
         g_state->offer_results.pop_front();
-        if (result >= 0)
+        if (result >= 0 && !g_state->next_frame_length)
         {
             Frame frame;
             frame.data.assign(buffer, buffer + length);
@@ -179,7 +229,7 @@ int stub_subscription_poll(
     void *clientd,
     std::size_t fragment_limit)
 {
-    if (g_state == nullptr)
+    if (g_state == nullptr || g_state->poll_fail)
     {
         return 0;
     }
@@ -188,7 +238,12 @@ int stub_subscription_poll(
     {
         auto frame = g_state->frames.front();
         g_state->frames.pop_front();
-        handler(clientd, frame.data.data(), frame.length, nullptr);
+        std::size_t length = frame.length;
+        if (g_state->next_frame_length)
+        {
+            length = g_state->next_frame_length;
+        }
+        handler(clientd, frame.data.data(), length, nullptr);
         fragments++;
     }
     return static_cast<int>(fragments);
@@ -294,6 +349,27 @@ bool test_aeron_round_trip()
     return ok;
 }
 
+bool test_aeron_empty_offer()
+{
+    StubState state;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 58, "", 4, 2});
+        transport.send(epoch::Message{1, 1, 1, 1, 1, 1, 1});
+        if (!state.frames.empty() || transport.stats().sent_count != 1)
+        {
+            ok = false;
+        }
+        transport.close();
+    }
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
 bool test_aeron_invalid_frame_ignored()
 {
     StubState state;
@@ -349,6 +425,163 @@ bool test_aeron_offer_failures()
         {
             ok = false;
         }
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_publication_failures()
+{
+    auto previous = epoch::test::aeron_hooks();
+    auto hooks = build_stub_hooks();
+    hooks.async_add_publication = [](aeron_async_add_publication_t **, aeron_t *, const char *, int32_t) { return -1; };
+    epoch::test::aeron_hooks() = hooks;
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 50, "", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_publication_poll_errors()
+{
+    StubState state;
+    state.publication_poll_fail_after = 0;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 51, "", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_publication_null_error()
+{
+    StubState state;
+    state.publication_null = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    auto hooks = build_stub_hooks();
+    hooks.async_add_publication_poll = [](aeron_publication_t **publication, aeron_async_add_publication_t *) {
+        *publication = nullptr;
+        return 1;
+    };
+    epoch::test::aeron_hooks() = hooks;
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 52, "", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_subscription_failures()
+{
+    auto previous = epoch::test::aeron_hooks();
+    auto hooks = build_stub_hooks();
+    hooks.async_add_subscription = [](aeron_async_add_subscription_t **, aeron_t *, const char *, int32_t,
+                                      aeron_on_available_image_t, void *, aeron_on_unavailable_image_t, void *) { return -1; };
+    epoch::test::aeron_hooks() = hooks;
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 53, "", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_subscription_poll_and_null_errors()
+{
+    StubState state;
+    state.subscription_poll_fail_after = 0;
+    state.subscription_null = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 54, "", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 55, "", 4, 2});
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_poll_error_and_short_frame()
+{
+    StubState state;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 57, "", 4, 2});
+        state.offer_results.push_back(0);
+        state.next_frame_length = 8;
+        Frame short_frame;
+        encode_message(short_frame, epoch::Message{1, 1, 1, 1, 1, 1, 7});
+        state.frames.push_back(short_frame);
+        const auto out = transport.poll(1);
+        if (!out.empty() || transport.stats().received_count != 0)
+        {
+            ok = false;
+        }
+        transport.close();
     }
 
     epoch::test::aeron_hooks() = previous;
@@ -464,6 +697,39 @@ bool test_aeron_start_failure_cleans_up()
     return ok;
 }
 
+bool test_aeron_async_retry_yield_loops()
+{
+    // Aeron async add publication/subscription may return 0 (not complete) once
+    // before completing; the transport retries with std::this_thread::yield().
+    StubState state;
+    state.async_pub_poll_zero_first = true;
+    state.async_sub_poll_zero_first = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 53, "", 4, 2});
+        (void)transport;
+        transport.close();
+    }
+    catch (const std::runtime_error &)
+    {
+        ok = false;
+    }
+
+    // Both async poll stubs must have returned 0 at least once (retry exercised).
+    if (state.async_pub_poll_calls < 2 || state.async_sub_poll_calls < 2)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
 } // namespace
 
 int main()
@@ -480,6 +746,30 @@ int main()
     {
         return 1;
     }
+    if (!test_aeron_publication_failures())
+    {
+        return 1;
+    }
+    if (!test_aeron_publication_poll_errors())
+    {
+        return 1;
+    }
+    if (!test_aeron_publication_null_error())
+    {
+        return 1;
+    }
+    if (!test_aeron_subscription_failures())
+    {
+        return 1;
+    }
+    if (!test_aeron_subscription_poll_and_null_errors())
+    {
+        return 1;
+    }
+    if (!test_aeron_poll_error_and_short_frame())
+    {
+        return 1;
+    }
     if (!test_aeron_constructor_errors())
     {
         return 1;
@@ -493,6 +783,10 @@ int main()
         return 1;
     }
     if (!test_aeron_start_failure_cleans_up())
+    {
+        return 1;
+    }
+    if (!test_aeron_async_retry_yield_loops())
     {
         return 1;
     }

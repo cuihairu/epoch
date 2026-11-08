@@ -76,6 +76,20 @@ test("processMessages orders epochs and carries state", () => {
   ]);
 });
 
+test("processMessages orders by qos descending within same epoch and channel", () => {
+  const messages = [
+    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 100, qos: 1, payload: 10 },
+    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 2, schemaId: 100, qos: 5, payload: 20 },
+    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 3, schemaId: 100, qos: 3, payload: 30 }
+  ];
+
+  const results = epoch.processMessages(messages);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].epoch, 1);
+  assert.equal(results[0].state, 60);
+  assert.equal(results[0].hash, epoch.fnv1a64Hex("state:60"));
+});
+
 test("InMemoryTransport polls and closes", () => {
   const transport = new epoch.InMemoryTransport();
   transport.send({ payload: 1 });

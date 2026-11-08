@@ -91,3 +91,50 @@
 ### 目录/分类问题
 
 - 未见分类问题。`cpp/include`/`cpp/src` 与各语言包名只承载实现入口；实际跨语言契约由共享头/头文件、协议文档和测试向量约束。
+
+## 覆盖率提升 2026-11-08
+
+### 目标与结果
+
+- [ ] 目标：把 codecov 总覆盖率提升到 ≥98%（只加测试、不改生产代码）。
+- [ ] 实测：codecov 口径（各语言报告 line 加权聚合）从 baseline 73.69% 提升到 **88.34%**（2454/2778），未达 98%。
+- [ ] 结论：98% 无法仅靠加测试达成——剩余缺口全部来自生产代码结构限制（不可注入的 P/Invoke、真实 CGO/Aeron 边界、异常构造/重试循环），在「不改生产代码」约束下不可覆盖。
+
+### 各语言最终覆盖率（line 口径）
+
+| 语言 | 生产代码 | 全量报告（含测试文件，codecov 口径） |
+| --- | --- | --- |
+| Python | 259/262 = 98.85% | 483/493 = 97.97% |
+| Node | 435/438 = 99.32% | 435/438 = 99.32% |
+| C++ | 218/238 = 91.60% | 691/832 = 83.05% |
+| Java | 193/214 = 90.19% | 516/573 = 90.05% |
+| .NET | 197/278 = 70.86% | 197/278 = 70.86% |
+| Go | 132/164 = 80.49% | 132/164 = 80.49% |
+
+聚合（codecov 口径）：**2454/2778 = 88.34%**。生产代码口径：**1757/1953 = 89.96%**。
+
+### 未覆盖缺口与原因（不改生产代码不可覆盖）
+
+- **.NET `AeronTransport.AeronNative`（约 75 行，0%）**：`AeronNative` 是 `private sealed class`，硬编码调用 `private static class NativeMethods` 的 `[DllImport]` P/Invoke；测试只能注入 `IAeronNative` 接口，无法在不改生产代码下覆盖真实 P/Invoke 路径。
+- **Go `aeron_transport.go`（约 32 语句，0 覆盖）**：`aeronOpen`/`aeronSend`/`aeronPoll`/`aeronStats`/`aeronClose` 是真实 CGO 调用 `C.epoch_aeron_*`，需真实原生库 + Aeron 驱动，纯单元测试 stub 无法覆盖这些边界。
+- **C++ `aeron_transport.cpp`（约 18 行）**：`std::this_thread::yield()` 异步重试循环、`throw_if_null`/`throw_if_error` 的特定异常构造分支——前者需真实 Aeron 异步完成，后者是异常路径。
+- **Java `AeronTransport.RealAeronAdapter`（约 16 行）**：真实 Aeron `MediaDriver`/`Aeron.connect`/`addPublication`/`addSubscription` 路径，需真实 Aeron 运行时。
+- **少量工具粒度伪影**（如 Python `actor_id.py:49`、Go `epoch.go:99`、Node `index.ts:48` 的条件行/默认参数行）——逻辑已被测试执行，但 coverage 工具按行/语句粒度标记未完全命中。
+
+### 已补测试（只加测试，不改生产代码；覆盖真实错误/边界路径）
+
+- `python/tests/test_aeron_frame.py`：新增 `test_find_native_library_discovery_paths`，覆盖 `EPOCH_AERON_LIBRARY` 优先级、`find_library` 返回路径与异常回退（库发现边界）。
+- `cpp/tests/aeron_transport_test.cpp`：新增 `test_aeron_async_retry_yield_loops`，让 async add publication/subscription 首次返回 0，覆盖 `std::this_thread::yield()` 重试循环。
+- `java/src/test/java/io/epoch/VectorTestMain.java`：新增 `AeronConfig.defaults()`/`embeddedDefaults()` 断言，覆盖配置默认工厂（真实边界）。
+- `go/epoch_test.go`：修正 `TestCompareMessage` 的 SourceSeq 比较（原比较对象缺 `Qos`，Qos 先分歧使 SourceSeq 分支未执行），现真实覆盖 SourceSeq 排序分支。
+- `node/test/aeron.test.js`：新增 `native.poll(handle, 0)` 空批次断言、库发现 fallback 到 `"epoch_aeron"` 用例。
+- `node/test/version.test.js`：新增 Qos 降序排序用例。
+
+### 全量测试
+
+- [x] 全量测试全绿：C++ ctest 3/3、Python unittest 17/17、Node 19/19、.NET 13/13、Go `go test` ok、Java `VectorTestMain` exit 0。
+
+### 复现方法
+
+- 各语言覆盖率脚本：Python `coverage run -m unittest discover -s tests && coverage xml`；Node `pnpm test`（c8 lcov）；C++ `gcovr -r . --object-directory cppbuild --xml-pretty -o cpp/coverage.xml --filter cpp`；Java `java/scripts/run-coverage.sh`（JaCoCo）；.NET `dotnet test --collect:"XPlat Code Coverage"`；Go `go test ./... -coverprofile=coverage.out`。
+- codecov 口径核对：公开 badge 各 flag 加权聚合（baseline 73.71%）与 codecov 报告的 73.69%/74% 吻合，证明 codecov 聚合为各语言报告 line 加权（含测试文件）。

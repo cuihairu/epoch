@@ -140,6 +140,21 @@ public class VectorTests
         Assert.Empty(transport.Poll(1));
     }
 
+    [Fact]
+    public void ActorIdCodecRejectsEachOutOfRangePart()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(-1, 1, 1, 1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1 << 10, 1, 1, 1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1, -1, 1, 1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1, 1 << 12, 1, 1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1, 1, -1, 1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1, 1, 1 << 6, 1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1, 1, 1, -1, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1, 1, 1, 1 << 10, 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1, 1, 1, 1, -1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Epoch.ActorId.Encode(new ActorIdParts(1, 1, 1, 1, 1 << 26)));
+    }
+
     private static string LocateVectorFile()
     {
         var current = Directory.GetCurrentDirectory();

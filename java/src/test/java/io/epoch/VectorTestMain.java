@@ -32,6 +32,19 @@ public final class VectorTestMain {
         ensure(normalized.offerMaxAttempts() == 10, "AeronConfig offer attempts mismatch");
         ensure(normalized.idleStrategy() != null, "AeronConfig idle strategy mismatch");
 
+        AeronTransport.AeronConfig defaultsConfig = AeronTransport.AeronConfig.defaults("aeron:ipc", 2, "");
+        ensure(defaultsConfig.fragmentLimit() == 64, "AeronConfig.defaults fragment limit mismatch");
+        ensure(defaultsConfig.offerMaxAttempts() == 10, "AeronConfig.defaults offer attempts mismatch");
+        ensure(!defaultsConfig.embeddedDriver(), "AeronConfig.defaults should not embed driver");
+        ensure(!defaultsConfig.dirDeleteOnStart(), "AeronConfig.defaults dirDeleteOnStart mismatch");
+        ensure(!defaultsConfig.dirDeleteOnShutdown(), "AeronConfig.defaults dirDeleteOnShutdown mismatch");
+
+        AeronTransport.AeronConfig embeddedConfig =
+            AeronTransport.AeronConfig.embeddedDefaults("aeron:ipc", 2, "");
+        ensure(embeddedConfig.embeddedDriver(), "AeronConfig.embeddedDefaults should embed driver");
+        ensure(embeddedConfig.dirDeleteOnStart(), "AeronConfig.embeddedDefaults dirDeleteOnStart mismatch");
+        ensure(embeddedConfig.dirDeleteOnShutdown(), "AeronConfig.embeddedDefaults dirDeleteOnShutdown mismatch");
+
         List<Engine.Message> sampleMessages = new ArrayList<>();
         sampleMessages.add(new Engine.Message(2, 2, 1, 2, 100, 0, 5));
         sampleMessages.add(new Engine.Message(1, 1, 2, 1, 100, 0, 2));
