@@ -4,6 +4,7 @@
 #include "epoch/transport.h"
 
 #include <functional>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -87,6 +88,32 @@ bool test_engine_ordering_branches()
     return true;
 }
 
+bool test_engine_qos_descending()
+{
+    std::unique_ptr<epoch::ActorIdCodec> codec =
+        std::make_unique<epoch::DefaultActorIdCodec>();
+    if (std::string(codec->name()) != "default")
+    {
+        return false;
+    }
+    std::vector<epoch::Message> messages = {
+        {1, 1, 1, 1, 100, 0, 5},
+        {1, 1, 3, 1, 100, 0, 5},
+        {1, 1, 2, 1, 100, 0, 5},
+        {1, 1, 2, 1, 101, 0, 5},
+    };
+    auto results = epoch::process_messages(messages);
+    if (results.size() != 1 || results[0].state != 20)
+    {
+        return false;
+    }
+    if (epoch::fnv1a64_hex("state:20") != results[0].hash)
+    {
+        return false;
+    }
+    return true;
+}
+
 bool test_in_memory_transport()
 {
     epoch::InMemoryTransport transport;
@@ -127,6 +154,10 @@ int main()
         return 1;
     }
     if (!test_engine_ordering_branches())
+    {
+        return 1;
+    }
+    if (!test_engine_qos_descending())
     {
         return 1;
     }

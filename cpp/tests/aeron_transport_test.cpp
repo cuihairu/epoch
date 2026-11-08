@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -730,6 +731,222 @@ bool test_aeron_async_retry_yield_loops()
     return ok;
 }
 
+bool expect_single_counter(const epoch::AeronStats &stats, int which)
+{
+    switch (which)
+    {
+    case 0:
+        return stats.offer_not_connected == 1 && stats.offer_admin_action == 0 &&
+               stats.offer_closed == 0 && stats.offer_max_position == 0 &&
+               stats.offer_failed == 0;
+    case 1:
+        return stats.offer_not_connected == 0 && stats.offer_admin_action == 1 &&
+               stats.offer_closed == 0 && stats.offer_max_position == 0 &&
+               stats.offer_failed == 0;
+    case 2:
+        return stats.offer_not_connected == 0 && stats.offer_admin_action == 0 &&
+               stats.offer_closed == 1 && stats.offer_max_position == 0 &&
+               stats.offer_failed == 0;
+    case 3:
+        return stats.offer_not_connected == 0 && stats.offer_admin_action == 0 &&
+               stats.offer_closed == 0 && stats.offer_max_position == 1 &&
+               stats.offer_failed == 0;
+    default:
+        return stats.offer_not_connected == 0 && stats.offer_admin_action == 0 &&
+               stats.offer_closed == 0 && stats.offer_max_position == 0 &&
+               stats.offer_failed == 1;
+    }
+}
+
+bool test_aeron_offer_stats_branches()
+{
+    const std::int64_t codes[] = {
+        AERON_PUBLICATION_NOT_CONNECTED,
+        AERON_PUBLICATION_ADMIN_ACTION,
+        AERON_PUBLICATION_CLOSED,
+        AERON_PUBLICATION_MAX_POSITION_EXCEEDED,
+        -99,
+    };
+    for (int i = 0; i < 5; i++)
+    {
+        StubState state;
+        state.offer_results = {codes[i]};
+        g_state = &state;
+        auto previous = epoch::test::aeron_hooks();
+        epoch::test::aeron_hooks() = build_stub_hooks();
+
+        bool ok = true;
+        try
+        {
+            epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 62, "", 4, 1});
+            bool threw = false;
+            try
+            {
+                transport.send(epoch::Message{1, 1, 1, 1, 0, 0, 1});
+            }
+            catch (const std::runtime_error &)
+            {
+                threw = true;
+            }
+            if (!threw || !expect_single_counter(transport.stats(), i))
+            {
+                ok = false;
+            }
+            transport.close();
+        }
+        catch (const std::runtime_error &)
+        {
+            ok = false;
+        }
+
+        epoch::test::aeron_hooks() = previous;
+        if (!ok)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool test_aeron_offer_back_pressure_retry_succeeds()
+{
+    StubState state;
+    state.offer_results = {AERON_PUBLICATION_BACK_PRESSURED, 1};
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 63, "", 4, 2});
+        transport.send(epoch::Message{1, 1, 1, 1, 0, 0, 1});
+        const epoch::AeronStats &stats = transport.stats();
+        if (stats.sent_count != 1 || stats.offer_back_pressure != 1)
+        {
+            ok = false;
+        }
+        transport.close();
+    }
+    catch (const std::runtime_error &)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_send_after_close_throws()
+{
+    StubState state;
+    state.offer_results = {1};
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 64, "", 4, 1});
+        transport.close();
+        try
+        {
+            transport.send(epoch::Message{1, 1, 1, 1, 0, 0, 1});
+            ok = false;
+        }
+        catch (const std::runtime_error &)
+        {
+        }
+    }
+    catch (const std::runtime_error &)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_accessors_and_ctor_defaults()
+{
+    StubState state;
+    state.offer_results = {1};
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronTransport transport(epoch::AeronConfig{"aeron:ipc", 65, "", 0, 0});
+        if (transport.config().channel != "aeron:ipc")
+        {
+            ok = false;
+        }
+        if (transport.config().fragment_limit != 64)
+        {
+            ok = false;
+        }
+        if (transport.config().offer_max_attempts != 10)
+        {
+            ok = false;
+        }
+        if (transport.stats().sent_count != 0)
+        {
+            ok = false;
+        }
+        transport.close();
+    }
+    catch (const std::runtime_error &)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_poll_zero_and_destructor()
+{
+    StubState state;
+    state.offer_results = {1};
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        {
+            // Owned through the Transport interface: destruction must release
+            // resources through the virtual destructor.
+            std::unique_ptr<epoch::Transport> transport =
+                std::make_unique<epoch::AeronTransport>(epoch::AeronConfig{"aeron:ipc", 66, "", 4, 1});
+            if (!transport->poll(0).empty())
+            {
+                ok = false;
+            }
+            // No explicit close here: the destructor must release resources.
+        }
+    }
+    catch (const std::runtime_error &)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_reset_hooks_restores_defaults()
+{
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::reset_aeron_hooks();
+    epoch::test::aeron_hooks() = previous;
+    return true;
+}
+
 } // namespace
 
 int main()
@@ -787,6 +1004,30 @@ int main()
         return 1;
     }
     if (!test_aeron_async_retry_yield_loops())
+    {
+        return 1;
+    }
+    if (!test_aeron_offer_stats_branches())
+    {
+        return 1;
+    }
+    if (!test_aeron_offer_back_pressure_retry_succeeds())
+    {
+        return 1;
+    }
+    if (!test_aeron_send_after_close_throws())
+    {
+        return 1;
+    }
+    if (!test_aeron_accessors_and_ctor_defaults())
+    {
+        return 1;
+    }
+    if (!test_aeron_reset_hooks_restores_defaults())
+    {
+        return 1;
+    }
+    if (!test_aeron_poll_zero_and_destructor())
     {
         return 1;
     }
