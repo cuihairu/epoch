@@ -297,6 +297,83 @@ public final class VectorTestMain {
             failingTransport.close();
         }
 
+        // Offer failure classification: each Aeron publication result code must
+        // land in its own stats counter (and only there).
+        long[] failureCodes = {
+            io.aeron.Publication.NOT_CONNECTED,
+            io.aeron.Publication.ADMIN_ACTION,
+            io.aeron.Publication.CLOSED,
+            -99L,
+        };
+        for (long code : failureCodes) {
+            AeronTransport codeTransport = new AeronTransport(
+                failingConfig, new FakeAeronAdapter(code, code));
+            try {
+                boolean codeFailed = false;
+                try {
+                    codeTransport.send(new Engine.Message(1, 1, 1, 1, 1, 1, 1));
+                } catch (IllegalStateException ex) {
+                    codeFailed = true;
+                }
+                ensure(codeFailed, "AeronTransport offer failure mismatch for code " + code);
+                AeronTransport.AeronStats codeStats = codeTransport.stats();
+                long expected = 2;
+                ensure(codeStats.offerBackPressure() == 0, "AeronTransport stats back pressure misclassification");
+                ensure(codeStats.sentCount() == 0, "AeronTransport stats sent on failure mismatch");
+                ensure(codeStats.receivedCount() == 0, "AeronTransport stats received on failure mismatch");
+                long notConnected = code == io.aeron.Publication.NOT_CONNECTED ? expected : 0;
+                long adminAction = code == io.aeron.Publication.ADMIN_ACTION ? expected : 0;
+                long closed = code == io.aeron.Publication.CLOSED ? expected : 0;
+                long failed = code == -99L ? expected : 0;
+                ensure(codeStats.offerNotConnected() == notConnected, "AeronTransport stats not connected mismatch");
+                ensure(codeStats.offerAdminAction() == adminAction, "AeronTransport stats admin action mismatch");
+                ensure(codeStats.offerClosed() == closed, "AeronTransport stats closed mismatch");
+                ensure(codeStats.offerFailed() == failed, "AeronTransport stats failed mismatch");
+            } finally {
+                codeTransport.close();
+            }
+        }
+
+        // Source-seq tie-break: identical epoch/channel/qos/sourceId must order by
+        // sourceSeq and still aggregate into one epoch result.
+        List<Engine.Message> tieMessages = new ArrayList<>();
+        tieMessages.add(new Engine.Message(4, 1, 1, 7, 20, 0, 3));
+        tieMessages.add(new Engine.Message(4, 1, 1, 7, 10, 0, 4));
+        List<Engine.EpochResult> tieResults = Engine.processMessages(tieMessages);
+        ensure(tieResults.size() == 1 && tieResults.get(0).state == 7, "Source-seq tie state mismatch");
+
+        // Hash padding: a state hash with a leading zero nibble must still render
+        // as exactly 16 lowercase hex characters (zero-padded, not truncated).
+        long padPayload = -1;
+        for (long p = 1; p <= 20000 && padPayload < 0; p++) {
+            if (Engine.fnv1a64Hex("state:" + p).startsWith("0")) {
+                padPayload = p;
+            }
+        }
+        ensure(padPayload > 0, "no padding vector found");
+        List<Engine.Message> padMessages = new ArrayList<>();
+        padMessages.add(new Engine.Message(9, 1, 0, 1, 1, 0, padPayload));
+        List<Engine.EpochResult> padResults = Engine.processMessages(padMessages);
+        ensure(padResults.size() == 1, "Padding result count mismatch");
+        ensure(padResults.get(0).hash.length() == 16, "Padded hash length mismatch");
+        ensure(padResults.get(0).hash.startsWith("0"), "Padded hash leading zero mismatch");
+        ensure(padResults.get(0).hash.equals(Engine.fnv1a64Hex("state:" + padPayload)), "Padded hash mismatch");
+
+        // Short-frame tolerance: a fragment shorter than the frame length must be
+        // ignored by the poll path without corrupting the batch.
+        FakeAeronAdapter shortFrameAdapter = new FakeAeronAdapter();
+        AeronTransport shortFrameTransport = new AeronTransport(
+            new AeronTransport.AeronConfig(
+                "aeron:ipc", 48, "", 64, 10,
+                new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false),
+            shortFrameAdapter);
+        try {
+            shortFrameAdapter.seedFrame(new byte[10]);
+            ensure(shortFrameTransport.poll(1).isEmpty(), "AeronTransport short frame mismatch");
+        } finally {
+            shortFrameTransport.close();
+        }
+
         // Real Aeron adapter idempotent re-close: the partial-close retry path in
         // AeronTransport.close() assumes RealAeronAdapter.close() can be called again
         // after a partial release (publication/subscription/aeron/mediaDriver each
@@ -322,6 +399,31 @@ public final class VectorTestMain {
         }
         ensure(realSendAfterCloseFailed, "Real Aeron transport send after close mismatch");
         realTransport.close();
+
+        // Real Aeron end-to-end roundtrip over an explicitly configured driver
+        // directory: exercises adapter construction with a non-blank directory,
+        // real publication offer and subscription poll.
+        java.nio.file.Path realIoDir = Files.createTempDirectory("epoch-aeron-io");
+        AeronTransport.AeronConfig realIoConfig = new AeronTransport.AeronConfig(
+            "aeron:ipc", 49, realIoDir.toString(), 64, 10,
+            new org.agrona.concurrent.BusySpinIdleStrategy(), true, true, true);
+        AeronTransport realIoTransport = new AeronTransport(realIoConfig);
+        try {
+            realIoTransport.send(new Engine.Message(2, 1, 1, 1, 1, 1, 11));
+            List<Engine.Message> realIoOut = List.of();
+            for (int i = 0; i < 200 && realIoOut.isEmpty(); i++) {
+                realIoOut = realIoTransport.poll(1);
+                if (realIoOut.isEmpty()) {
+                    Thread.sleep(5);
+                }
+            }
+            ensure(!realIoOut.isEmpty(), "Real Aeron roundtrip received nothing");
+            ensure(realIoOut.get(0).payload == 11, "Real Aeron roundtrip payload mismatch");
+            ensure(realIoTransport.config().streamId() == 49, "Real Aeron config accessor mismatch");
+            ensure(realIoTransport.stats().sentCount() == 1, "Real Aeron roundtrip stats mismatch");
+        } finally {
+            realIoTransport.close();
+        }
 
         Path vector = locateVectorFile();
         List<Engine.Message> messages = new ArrayList<>();
@@ -416,6 +518,10 @@ public final class VectorTestMain {
             for (long result : results) {
                 offerResults.add(result);
             }
+        }
+
+        void seedFrame(byte[] frame) {
+            frames.add(frame);
         }
 
         @Override
