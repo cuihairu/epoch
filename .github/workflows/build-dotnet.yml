@@ -22,6 +22,11 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+      - name: Build native library
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          chmod +x native/build.sh
+          ./native/build.sh
       - name: Build
         if: steps.detect.outputs.present == 'true'
         run: |
@@ -32,6 +37,8 @@ jobs:
           fi
       - name: Test
         if: steps.detect.outputs.present == 'true' && hashFiles('dotnet/Epoch.Tests/Epoch.Tests.csproj') != ''
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/native/build
         run: dotnet test dotnet/Epoch.Tests/Epoch.Tests.csproj --collect:"XPlat Code Coverage"
       - name: Upload coverage
         if: steps.detect.outputs.present == 'true' && hashFiles('dotnet/Epoch.Tests/Epoch.Tests.csproj') != ''
