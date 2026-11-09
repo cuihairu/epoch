@@ -44,6 +44,12 @@ func TestProcessMessagesSortsBySourceID(t *testing.T) {
 		{Epoch: 5, ChannelID: 1, Qos: 1, SourceID: 1, SourceSeq: 1, SchemaID: 100, Payload: 10},
 		{Epoch: 5, ChannelID: 1, Qos: 1, SourceID: 2, SourceSeq: 1, SchemaID: 100, Payload: 20},
 	}
+	sortMessages(messages)
+	for i, message := range messages {
+		if message.SourceID != int64(i+1) {
+			t.Fatalf("message %d out of order: %+v", i, message)
+		}
+	}
 	results := ProcessMessages(messages)
 	if len(results) != 1 || results[0].State != 60 {
 		t.Fatalf("unexpected results: %+v", results)
