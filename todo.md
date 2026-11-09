@@ -21,7 +21,7 @@
 
 ## 待办（P2，记 todo）
 - [x] 修复 C++ AeronTransport 构造器异常路径资源泄漏（context_/client_ 提前赋值使 catch 路径正确释放；新增 init/start 失败清理测试；ctest 3/3 绿）
-- [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）【BLOCKED：改 bigint 为破坏性 API 变更，需设计拍板；缺设计拍板（确认是否接受破坏性 API 变更）→ 本轮跳过，待拍板后处理；2026-11-04 复核：源码仍为 number（node/src/index.ts:88-112），docs/review/2026-11-02-code-review-opencode.md:49、:106 确认需 bigint 破坏性变更，设计拍板仍缺→保留 BLOCKED 不重试；2026-11-06 复核：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用，设计拍板仍缺→保留 BLOCKED 不重试；本轮复核（2026-11-06）：源码与上一致、全仓仍无设计拍板记录（rg 拍板/bigint 仅注记无决策）→缺设计拍板，保持未勾 BLOCKED 不重试】
+- [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）【BLOCKED：改 bigint 为破坏性 API 变更，需设计拍板；缺设计拍板（确认是否接受破坏性 API 变更）→ 本轮跳过，待拍板后处理；2026-11-04 复核：源码仍为 number（node/src/index.ts:88-112），docs/review/2026-11-02-code-review-opencode.md:49、:106 确认需 bigint 破坏性变更，设计拍板仍缺→保留 BLOCKED 不重试；2026-11-06 复核：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用，设计拍板仍缺→保留 BLOCKED 不重试；本轮复核（2026-11-06）：源码与上一致、全仓仍无设计拍板记录（rg 拍板/bigint 仅注记无决策）→缺设计拍板，保持未勾 BLOCKED 不重试；本轮复核（2026-11-09）：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用、全仓仍无设计拍板记录→缺设计拍板，保持未勾 BLOCKED 不重试】
 - [x] Java AeronTransport 补充关闭状态守卫（volatile closed：send 后抛异常、poll 后空、close 幂等；run-tests.sh 绿）
 
 ## 审核发现
@@ -70,8 +70,8 @@
 - [x] 审核发现：:67 修复陈述「现 HEAD 实测含 2 个提交（9ad2235、23c4885）」仍以移动引用 HEAD 为基准——该行所在提交 a60dd3d 亦落入 664ada7..HEAD，现 664ada7..a60dd3d 实测含 3 个提交（a60dd3d、9ad2235、23c4885），与「含 2 个」不符，证据不可复现且自指，与本行所述 :66 旧证据问题同型复发（todo.md:67）——属实：已改 :67 该陈述为固定端点「现 664ada7..9ad2235 实测含 2 个提交（9ad2235、23c4885）」，实测 git rev-list 664ada7..9ad2235 返回 9ad2235、23c4885（共 2 个），可复现且不再自指；todo.md:67
 - [x] 审核发现：本轮 diff 未见问题（a60dd3d..62c1bb6）。证据：git rev-list a60dd3d..62c1bb6 提交清单仅含 62c1bb6（共 1 个），逐项复查该提交 diff 未见问题（仅 todo.md 追加勾选记录，无代码改动）；区间端点 a60dd3d..62c1bb6 为 7 位固定端点，符合 todo.md:50 约定。
 - [x] 审核发现：本轮 diff 未见问题（62c1bb6..6a8b6d8）。证据：git rev-list 62c1bb6..6a8b6d8 提交清单仅含 6a8b6d8（共 1 个），逐项复查该提交 diff 未见问题（仅 todo.md：为 Node bigint BLOCKED 项追加 2026-11-06 复核注记并新增上一条审计记录，无代码改动）；区间端点 62c1bb6..6a8b6d8 为 7 位固定端点，符合 todo.md:50 约定；pnpm run docs:build 绿 18 页；ctest 3/3、go test ok、python unittest 10/10、node test 11/11、java exit 0、dotnet test 8/8（DOTNET_ROLL_FORWARD=Major）全绿
-- [x] 审核发现：本轮 diff（6a8b6d8..HEAD，仅 a511f84 纯新增 :72）自述「原行区间端点 62c1bb6a 为 8 位且 HEAD 为移动引用…改为 7 位固定端点 62c1bb6..6a8b6d8」，但该行本为纯新增（git show a511f84 仅 +1 行），父提交 6a8b6d8 的 todo.md 止于 :71 且全文件无「62c1bb6a」（git grep 实测 0 处），所叙「原行…改为」改动不存在于本 diff、不可从 git 历史复现，属 :66-:70 已定「证据不可复现/自指」缺陷同型——属实：已改 :72（并同批 :71 同类「原行…改为」伪述）为纯新增行的真实证据（无原行可改），todo.md:71-72；git show a511f84 仅 +1 行、git grep -n 62c1bb6a 6a8b6d8 实测 0 处；pnpm run docs:build 绿 18 页；ctest 3/3、go test ok、python unittest 10/10、node test 11/11、java exit 0、dotnet test 8/8（DOTNET_ROLL_FORWARD=Major）全绿
-- [ ] 审核发现：以 HEAD 为终点的 6a8b6d8..HEAD 区间现包含后续提交，故该区间「仅 a511f84」的描述不可复现（todo.md:73）
+- [x] 审核发现：本轮 diff（6a8b6d8..a511f84，仅 a511f84 纯新增 :72）自述「原行区间端点 62c1bb6a 为 8 位且 HEAD 为移动引用…改为 7 位固定端点 62c1bb6..6a8b6d8」，但该行本为纯新增（git show a511f84 仅 +1 行），父提交 6a8b6d8 的 todo.md 止于 :71 且全文件无「62c1bb6a」（git grep 实测 0 处），所叙「原行…改为」改动不存在于本 diff、不可从 git 历史复现，属 :66-:70 已定「证据不可复现/自指」缺陷同型——属实：已改 :72（并同批 :71 同类「原行…改为」伪述）为纯新增行的真实证据（无原行可改），todo.md:71-72；git show a511f84 仅 +1 行、git grep -n 62c1bb6a 6a8b6d8 实测 0 处；pnpm run docs:build 绿 18 页；ctest 3/3、go test ok、python unittest 10/10、node test 11/11、java exit 0、dotnet test 8/8（DOTNET_ROLL_FORWARD=Major）全绿
+- [x] 审核发现：以 HEAD 为终点的 6a8b6d8..HEAD 区间现包含后续提交，故该区间「仅 a511f84」的描述不可复现（todo.md:73）。（属实：todo.md:73 现用移动端点 6a8b6d8..HEAD，实测 git rev-list 6a8b6d8..HEAD 含 18 个提交、非「仅 a511f84」，证据不可复现且自指——已改为固定端点 6a8b6d8..a511f84，实测 git rev-list 6a8b6d8..a511f84 仅含 a511f84（共 1 个），可复现且不再自指；todo.md:73）
 
 ## 源码分层分析 2026-11-07
 
@@ -98,7 +98,7 @@
 
 - [x] 目标：把 codecov 总覆盖率提升到 ≥98%（只加测试、不改生产代码）。（已完成尝试并如实记录：24f7701 批实测 88.34%，未达 98%；后续批次（cf06c15/26c2abf/b7c03ab/9b75669/0ea5718/ff7e39d/6a4f40c）提升至 95.74%（1775/1854），仍未达 98%；两批未达原因均如实记录于本节与「覆盖率提升 2026-11-09」节）
 - [x] 实测：codecov 口径（各语言报告 line 加权聚合）从 baseline 73.69% 提升到 **88.34%**（2454/2778），未达 98%。（证据：24f7701 批本地六语言实测加权（口径同 2026-11-09 节复现方法）；该口径现已被后续批次更新为 1775/1854=95.74%，见「覆盖率提升 2026-11-09」节）
-- [ ] 结论：98% 无法仅靠加测试达成——剩余缺口全部来自生产代码结构限制（不可注入的 P/Invoke、真实 CGO/Aeron 边界、异常构造/重试循环），在「不改生产代码」约束下不可覆盖。
+- [x] 结论：98% 无法仅靠加测试达成——剩余缺口全部来自生产代码结构限制（不可注入的 P/Invoke、真实 CGO/Aeron 边界、异常构造/重试循环），在「不改生产代码」约束下不可覆盖。（已由 2026-11-09 节实测确认：六语言聚合 1775/1854=95.74%，距 98% 差 42 行，缺口为 Go cgo 闭包（需真实 handle）、.NET AeronNative P/Invoke（需真实驱动）、C++ gcov 行归属噪声，均在不改生产行为+只用 stub/fake 下不可覆盖）
 
 ### 各语言最终覆盖率（line 口径）
 
