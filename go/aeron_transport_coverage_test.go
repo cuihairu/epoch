@@ -38,6 +38,18 @@ func TestProcessMessagesSortsSourceSeqWithinEpoch(t *testing.T) {
 	}
 }
 
+func TestProcessMessagesSortsBySourceID(t *testing.T) {
+	messages := []Message{
+		{Epoch: 5, ChannelID: 1, Qos: 1, SourceID: 3, SourceSeq: 1, SchemaID: 100, Payload: 30},
+		{Epoch: 5, ChannelID: 1, Qos: 1, SourceID: 1, SourceSeq: 1, SchemaID: 100, Payload: 10},
+		{Epoch: 5, ChannelID: 1, Qos: 1, SourceID: 2, SourceSeq: 1, SchemaID: 100, Payload: 20},
+	}
+	results := ProcessMessages(messages)
+	if len(results) != 1 || results[0].State != 60 {
+		t.Fatalf("unexpected results: %+v", results)
+	}
+}
+
 func TestRealNativeOpenRejectsInvalidDirectory(t *testing.T) {
 	config := AeronConfig{
 		Channel:        "aeron:udp?endpoint=127.0.0.1:20000",
