@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Detect Node project
         id: detect
         run: |
@@ -27,6 +29,11 @@ jobs:
         run: |
           corepack enable
           corepack prepare pnpm@9.15.1 --activate
+      - name: Build native library
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          chmod +x native/build.sh
+          ./native/build.sh
       - name: Test
         if: steps.detect.outputs.present == 'true'
         run: |
