@@ -188,3 +188,4 @@
 - 聚合核对：`(146+438+509+239+214+229)/(164+438+518+242+214+278)=1775/1854=95.74%`；codecov badge 于最近一次全绿 CI 跑后刷新至该口径（CI 已修复，排队等待 runner 时记录）。
 
 - [x] 审核发现：SourceID 排序测试只断言与顺序无关的载荷总和，排序失效或方向颠倒时仍会通过（go/aeron_transport_coverage_test.go:48）。（属实：测试改为先直接 sortMessages 并逐位断言 SourceID 升序（排序失效（no-op）或方向颠倒（3,2,1）时首位断言即失败），再跑 ProcessMessages 断言折叠值 state=60；go test ok（coverage 89.0%，compareMessage 100%））
+- [x] 审核发现：本轮 diff 未见问题（81542b47..488ca8c）。（属实：原引用 81542b47..HEAD 为移动端点（同 :73 缺陷类，随 HEAD 前进不可复现），已改为固定端点 81542b47..488ca8c；git rev-list 81542b47..488ca8c 仅含 709a3aa、488ca8c（共 2 个），逐项复查：709a3aa（go 测试补 SourceID 升序断言 + todo 勾选）go test ok（coverage 89.0%、compareMessage 100%）、488ca8c（todo.md 仅文档：修 :73 移动端点 + 勾 :74/:101）——本轮 diff 未见问题；todo.md:191）
