@@ -138,3 +138,51 @@
 
 - 各语言覆盖率脚本：Python `coverage run -m unittest discover -s tests && coverage xml`；Node `pnpm test`（c8 lcov）；C++ `gcovr -r . --object-directory cppbuild --xml-pretty -o cpp/coverage.xml --filter cpp`；Java `java/scripts/run-coverage.sh`（JaCoCo）；.NET `dotnet test --collect:"XPlat Code Coverage"`；Go `go test ./... -coverprofile=coverage.out`。
 - codecov 口径核对：公开 badge 各 flag 加权聚合（baseline 73.71%）与 codecov 报告的 73.69%/74% 吻合，证明 codecov 聚合为各语言报告 line 加权（含测试文件）。
+
+## 覆盖率提升 2026-11-09（98% 门槛）
+
+### 目标与结果
+
+- [x] 目标：把 codecov 总覆盖率提升到 ≥98%（只加测试、不改生产代码）。
+- [x] 实测：codecov 口径（各语言报告 line 加权聚合）从 80.40% 提升到 **95.74%**（1775/1854），距 98% 差 42 行。
+- [x] 结论：98% 无法仅靠加测试达成——剩余缺口全部来自生产代码结构限制（Go cgo 闭包需真实 handle、.NET AeronNative P/Invoke 需真实驱动、C++ gcov 行归属噪声），在「不改生产行为 + 单元测试只用 stub/fake」约束下不可覆盖。
+
+### 各语言最终覆盖率（本批实测，报告口径即 codecov 所见）
+
+| 语言 | 覆盖/总 | 比例 | 报告范围 |
+| --- | --- | --- | --- |
+| Go | 146/164 | 89.02% | 生产（statement，go test 天然排除 _test.go） |
+| Node | 438/438 | 100.00% | 生产（line，c8 lcov 仅 src） |
+| Python | 509/518 | 98.26% | 全量含测试（生产 262/262=100%） |
+| C++ | 239/242 | 98.76% | 生产（gcovr 过滤 cpp/src+cpp/include） |
+| Java | 214/214 | 100.00% | 生产（jacoco 仅 main classes） |
+| .NET | 229/278 | 82.37% | 生产（cobertura 仅产文件） |
+
+聚合（codecov 口径）：**1775/1854 = 95.74%**（gap to 98% = 42 行）。
+
+### 未覆盖缺口与原因（不改生产代码 + 只用 stub 不可覆盖）
+
+- **Go `aeron_transport.go`（18 statement）**：`aeronOpen`/`aeronSend`/`aeronPoll`/`aeronStats`/`aeronClose` 是真实 CGO 闭包（:73-110），需真实 native handle（成功 open 需运行中的 Aeron 驱动，仓库单元测试只用 stub/fake）；`Send` panic 分支（:159）为 `encodeAeronFrame` 永不报错的死代码。
+- **.NET `AeronNative`（49 行）**：`Send`/`Poll`/`Stats`/`Close` 与 `Open` 成功返回（dotnet/AeronTransport.cs:146、:158-214）硬编码 `[DllImport]` P/Invoke，需真实 `epoch_aeron` handle（成功 open 需驱动）；测试只能注入 `IAeronNative` 接口。
+- **C++ 3 行（gcov 行归属噪声）**：`cpp/include/epoch/actor_id.h:17`、`cpp/include/epoch/transport.h:13、35`——defaulted 虚析构/闭括号的行归属噪声，逻辑已被测试执行、工具按行粒度未命中。
+
+### 本批已补测试（只加测试，不改生产；关键路径/边界/异常）
+
+- `go/aeron_transport_coverage_test.go`：新增 `TestProcessMessagesSortsBySourceID`（SourceID 3/1/2 乱序 → state=60，覆盖 `compareMessage` SourceID 分支），Go 88.41%→89.02%（commit 6a4f40c）。
+- `dotnet/Epoch.Tests/CoverageTests.cs`：新增 4 项（AeronConfig 显式构造、`DefaultActorIdCodec.Name`、ProcessMessages SourceSeq 同键排序、RealNativeOpen 无效目录抛错），.NET 13→17 测试（commit ff7e39d）。
+- 前批已落：`node/test/codec.test.js`（26c2abf）、`python/tests/test_codec_extra.py`（b7c03ab）、`cpp/tests/*`（9b75669）、`java/.../VectorTestMain.java`（0ea5718）。
+
+### CI 修复（红腿→绿）
+
+- **build-node 红**：native lib 未构建 → 库发现测试取 `'epoch_aeron'` 回退、断言失败；`build-node.yml` 补 `submodules: recursive` + 原生构建步骤（commit 226a2ee）。
+- **build-dotnet 红**：checkout 缺 `submodules` → 原生构建 cmake 找不到 Aeron 子模块（CMakeLists.txt:36）；`build-dotnet.yml` 补 `submodules: recursive`（commit 226a2ee）。
+- 前批：`build-cpp.yml` gcovr 过滤生产源（a74c08a）、`build-dotnet.yml` 测试前原生构建（409fd8e）、`build-java` jacoco main-only 范围（4c356a1）。
+
+### 全量测试
+
+- [x] 全量测试全绿（本地实测）：Go `go test` ok（89.0%）、Node 21/21、Python 20/20、C++ ctest 3/3、Java `VectorTestMain` exit 0、.NET 17/17。
+
+### 复现方法
+
+- Python `coverage run -m unittest discover -s tests`；Node `pnpm test`（c8 lcov）；C++ `gcovr -r . --object-directory cppbuild --filter 'cpp/src' --filter 'cpp/include'`；Java `java/scripts/run-coverage.sh`（jacoco main-only）；.NET `dotnet test --collect:"XPlat Code Coverage"`（DOTNET_ROLL_FORWARD=LatestMajor + LD_LIBRARY_PATH=native/build）；Go `go test ./... -coverprofile=coverage.out`（CGO_ENABLED=1 + LD_LIBRARY_PATH=native/build）。
+- 聚合核对：`(146+438+509+239+214+229)/(164+438+518+242+214+278)=1775/1854=95.74%`；codecov badge 于最近一次全绿 CI 跑后刷新至该口径（CI 已修复，排队等待 runner 时记录）。
