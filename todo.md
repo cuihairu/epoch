@@ -189,3 +189,39 @@
 
 - [x] 审核发现：SourceID 排序测试只断言与顺序无关的载荷总和，排序失效或方向颠倒时仍会通过（go/aeron_transport_coverage_test.go:48）。（属实：测试改为先直接 sortMessages 并逐位断言 SourceID 升序（排序失效（no-op）或方向颠倒（3,2,1）时首位断言即失败），再跑 ProcessMessages 断言折叠值 state=60；go test ok（coverage 89.0%，compareMessage 100%））
 - [x] 审核发现：本轮 diff 未见问题（81542b47..488ca8c）。（属实：原引用 81542b47..HEAD 为移动端点（同 :73 缺陷类，随 HEAD 前进不可复现），已改为固定端点 81542b47..488ca8c；git rev-list 81542b47..488ca8c 仅含 709a3aa、488ca8c（共 2 个），逐项复查：709a3aa（go 测试补 SourceID 升序断言 + todo 勾选）go test ok（coverage 89.0%、compareMessage 100%）、488ca8c（todo.md 仅文档：修 :73 移动端点 + 勾 :74/:101）——本轮 diff 未见问题；todo.md:191）
+
+## 覆盖率巡检 2026-11-11（cov-epoch 任务书复核）
+
+### 结果
+
+- [x] 巡检结论：codecov 口径聚合覆盖率维持 **95.74%**（1775/1854），与 2026-11-09 节完全一致（其间生产代码零变更、零回归）；本轮新增测试 0——逐模块一手复核后，剩余缺口均确认为「只加测试、不改生产代码」约束下不可覆盖，维持 2026-11-09 上限结论。
+- [x] 任务书适配：cov-epoch.md 背景写作「Rust 仓 / cargo llvm-cov / 80.40%」与仓库实际不符（本仓无 Rust，为 C++/Java/.NET/Go/Node/Python 六语言仓；80.40% 为 2026-11-09 节的 codecov 历史基线）——按实际工具链执行等价步骤（测试→各语言覆盖率→找最低模块→核实缺口→记录证据）；cargo/llvm-cov/clippy 步骤标记 N/A，lint 以 `go vet`（绿）替代。
+
+### 全量测试（本地实测，全绿）
+
+- Go `go test ./...` ok（89.0%，`-count=1` 无缓存）；Python 20/20；Node 21/21；C++ ctest 3/3；Java jacoco 全类 100%；.NET 17/17。
+- 工作区：仅未跟踪 `python/.coverage`（coverage 运行产物， stash 无必要，未纳入提交）。
+
+### 各语言覆盖率（本批实测，与 2026-11-09 逐项一致）
+
+| 语言 | 覆盖/总 | 比例 |
+| --- | --- | --- |
+| Go | 146/164 | 89.02% |
+| Node | 438/438 | 100.00% |
+| Python | 509/518 | 98.26% |
+| C++ | 239/242 | 98.76% |
+| Java | 214/214 | 100.00% |
+| .NET | 229/278 | 82.37% |
+
+聚合（codecov 口径）：**1775/1854 = 95.74%**（gap to 98% = 42 行）。
+
+### 剩余缺口今日一手复核（全部确认不可覆盖，未硬凑）
+
+- **Go 18 statement**：coverage profile 逐块核对——未覆盖仅 `aeron_transport.go` 5 个包级 var 函数字面量体（aeronSend:73-80、aeronPoll:82-92、aeronStats:94-106、aeronClose:109-110，共 17 语句）+ `Send` panic 分支（:159，1 语句）；aeronOpen 体（:51-70）已由真实 open 失败路径覆盖（上轮 todo 将其列入缺口系记录偏差，实际已覆盖）。闭包需真实 native handle：读 `native/src/epoch_aeron.c:130-218` 确认 `epoch_aeron_open` 成功路径必经 `epoch_aeron_init_publication/subscription` 的 poll+sched_yield 循环（:70-83、:108-121），无运行中 Aeron 驱动时永不返回——open 无驱动要么失败（go test 现路径）要么挂起，Send/Poll/Stats/Close 真实闭包不可达；:159 panic 为死代码（`encodeAeronFrame` 恒返回 nil error）。
+- **.NET 49 行**：cobertura 逐行 dump——未覆盖行全部位于 `AeronNative` 私有类（Open 成功返回 :146、Send :156-167、Poll :170-188、Stats :191-206、Close :209-214），主 `AeronTransport` 类与两个 record 100% 覆盖；`AeronNative` 硬编码 `[DllImport]` P/Invoke（AeronTransport.cs:240-272），成功 open 需驱动（同上 C 代码证据），测试只能注入 `IAeronNative`。
+- **C++ 3 行**：`cpp/include/epoch/actor_id.h:17`、`cpp/include/epoch/transport.h:13、35`——defaulted 虚析构/闭括号 gcov 行归属噪声（逻辑已执行、工具粒度未命中）。
+- **Python 9 行**：coverage report 核对——全部位于测试文件自身（test_aeron_frame.py 4、test_codec_extra.py 2、test_version.py 3），生产代码 262/262=100%；补测试文件自身的行属凑数测试，任务书明确禁止。
+
+### 复现方法
+
+- 同 2026-11-09 节「复现方法」各命令，本轮逐条实测通过；.NET 未覆盖行明细：`python3` 解析 `Epoch.Tests/TestResults/*/coverage.cobertura.xml` 按 class 过滤 `AeronTransport.cs`；Go 未覆盖块：`grep aeron_transport.go go/coverage.out` 中计数为 0 的块。
