@@ -15,6 +15,9 @@ struct AeronConfig {
     std::string aeron_directory;
     std::int32_t fragment_limit = 64;
     std::int32_t offer_max_attempts = 10;
+    /* Milliseconds to wait for publication/subscription readiness before the
+     * constructor fails: 0 selects the default (10s), negative waits forever. */
+    std::int32_t ready_timeout_ms = 0;
 };
 
 struct AeronStats {

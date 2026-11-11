@@ -17,6 +17,7 @@ export type AeronConfig = {
   aeronDirectory: string;
   fragmentLimit?: number;
   offerMaxAttempts?: number;
+  readyTimeoutMs?: number;
 };
 
 export function version(): string {

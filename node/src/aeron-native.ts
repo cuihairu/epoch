@@ -32,7 +32,8 @@ export function loadAeronNative(koffiImpl?: any, libraryPath?: string): AeronNat
     stream_id: "int32_t",
     aeron_directory: "const char *",
     fragment_limit: "int32_t",
-    offer_max_attempts: "int32_t"
+    offer_max_attempts: "int32_t",
+    ready_timeout_ms: "int32_t"
   });
   const AeronStatsStruct = koffi.struct("epoch_aeron_stats_t", {
     sent_count: "int64_t",
@@ -82,7 +83,8 @@ export function loadAeronNative(koffiImpl?: any, libraryPath?: string): AeronNat
         stream_id: config.streamId,
         aeron_directory: config.aeronDirectory || null,
         fragment_limit: config.fragmentLimit ?? 64,
-        offer_max_attempts: config.offerMaxAttempts ?? 10
+        offer_max_attempts: config.offerMaxAttempts ?? 10,
+        ready_timeout_ms: config.readyTimeoutMs ?? 0
       };
       const handle = openFn(cfg, errBuf, errBuf.length);
       if (!handle) {

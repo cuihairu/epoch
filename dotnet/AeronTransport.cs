@@ -11,7 +11,8 @@ public sealed class AeronTransport : ITransport
         int StreamId,
         string AeronDirectory,
         int FragmentLimit = 64,
-        int OfferMaxAttempts = 10);
+        int OfferMaxAttempts = 10,
+        int ReadyTimeoutMs = 0);
 
     public sealed record AeronStats(
         long SentCount,
@@ -135,7 +136,8 @@ public sealed class AeronTransport : ITransport
                     StreamId = config.StreamId,
                     AeronDirectory = dirPtr,
                     FragmentLimit = config.FragmentLimit,
-                    OfferMaxAttempts = config.OfferMaxAttempts
+                    OfferMaxAttempts = config.OfferMaxAttempts,
+                    ReadyTimeoutMs = config.ReadyTimeoutMs
                 };
                 var error = new StringBuilder(256);
                 var handle = NativeMethods.epoch_aeron_open(ref nativeConfig, error, (UIntPtr)error.Capacity);
@@ -222,6 +224,7 @@ public sealed class AeronTransport : ITransport
         public IntPtr AeronDirectory;
         public int FragmentLimit;
         public int OfferMaxAttempts;
+        public int ReadyTimeoutMs;
     }
 
     [StructLayout(LayoutKind.Sequential)]

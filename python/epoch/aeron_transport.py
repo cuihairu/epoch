@@ -24,6 +24,7 @@ class AeronConfig:
     aeron_directory: str
     fragment_limit: int = 64
     offer_max_attempts: int = 10
+    ready_timeout_ms: int = 0
 
 
 @dataclass(frozen=True)
@@ -153,6 +154,7 @@ class _CConfig(ctypes.Structure):
         ("aeron_directory", ctypes.c_char_p),
         ("fragment_limit", ctypes.c_int32),
         ("offer_max_attempts", ctypes.c_int32),
+        ("ready_timeout_ms", ctypes.c_int32),
     ]
 
     @staticmethod
@@ -163,6 +165,7 @@ class _CConfig(ctypes.Structure):
             aeron_directory=config.aeron_directory.encode("utf-8") if config.aeron_directory else None,
             fragment_limit=config.fragment_limit,
             offer_max_attempts=config.offer_max_attempts,
+            ready_timeout_ms=config.ready_timeout_ms,
         )
 
 

@@ -40,3 +40,8 @@ add_library(epoch_aeron SHARED src/epoch_aeron.c)
 target_include_directories(epoch_aeron PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(epoch_aeron PUBLIC aeron::aeron_static)
 set_target_properties(epoch_aeron PROPERTIES OUTPUT_NAME "epoch_aeron")
+
+enable_testing()
+add_executable(epoch_aeron_c_test tests/epoch_aeron_c_test.c)
+target_link_libraries(epoch_aeron_c_test PRIVATE epoch_aeron)
+add_test(NAME epoch_aeron_c COMMAND epoch_aeron_c_test)

@@ -18,6 +18,10 @@ typedef struct epoch_aeron_config
     const char *aeron_directory;
     int32_t fragment_limit;
     int32_t offer_max_attempts;
+    /* Milliseconds to wait for publication/subscription readiness before
+     * epoch_aeron_open fails: 0 selects the default (10s), negative waits
+     * forever. */
+    int32_t ready_timeout_ms;
 }
 epoch_aeron_config_t;
 

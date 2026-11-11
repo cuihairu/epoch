@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
+
+#define EPOCH_AERON_DEFAULT_READY_TIMEOUT_MS 10000
 
 struct epoch_aeron_transport
 {
@@ -58,7 +61,39 @@ static void epoch_aeron_apply_defaults(epoch_aeron_config_t *config)
     }
 }
 
-static int epoch_aeron_init_publication(epoch_aeron_transport_t *transport, char *error, size_t error_len)
+static int epoch_aeron_deadline_ms(const epoch_aeron_config_t *config)
+{
+    if (config->ready_timeout_ms > 0)
+    {
+        return config->ready_timeout_ms;
+    }
+    if (config->ready_timeout_ms == 0)
+    {
+        return EPOCH_AERON_DEFAULT_READY_TIMEOUT_MS;
+    }
+    return -1;
+}
+
+static int64_t epoch_aeron_now_ms(void)
+{
+    struct timespec now;
+    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
+    {
+        return 0;
+    }
+    return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
+static int epoch_aeron_timed_out(int64_t deadline_ms)
+{
+    return deadline_ms >= 0 && epoch_aeron_now_ms() >= deadline_ms;
+}
+
+static int epoch_aeron_init_publication(
+    epoch_aeron_transport_t *transport,
+    const epoch_aeron_config_t *config,
+    char *error,
+    size_t error_len)
 {
     aeron_async_add_publication_t *pub_async = NULL;
     if (aeron_async_add_publication(
@@ -67,6 +102,8 @@ static int epoch_aeron_init_publication(epoch_aeron_transport_t *transport, char
         epoch_aeron_set_error_with_aeron(error, error_len, "aeron_async_add_publication failed");
         return -1;
     }
+    int timeout_ms = epoch_aeron_deadline_ms(config);
+    int64_t deadline_ms = timeout_ms < 0 ? -1 : epoch_aeron_now_ms() + timeout_ms;
     while (1)
     {
         int poll_result = aeron_async_add_publication_poll(&transport->publication, pub_async);
@@ -79,6 +116,11 @@ static int epoch_aeron_init_publication(epoch_aeron_transport_t *transport, char
             epoch_aeron_set_error_with_aeron(error, error_len, "aeron_async_add_publication_poll failed");
             return -1;
         }
+        if (epoch_aeron_timed_out(deadline_ms))
+        {
+            epoch_aeron_set_error(error, error_len, "publication not ready within timeout");
+            return -1;
+        }
         sched_yield();
     }
     if (transport->publication == NULL)
@@ -89,7 +131,11 @@ static int epoch_aeron_init_publication(epoch_aeron_transport_t *transport, char
     return 0;
 }
 
-static int epoch_aeron_init_subscription(epoch_aeron_transport_t *transport, char *error, size_t error_len)
+static int epoch_aeron_init_subscription(
+    epoch_aeron_transport_t *transport,
+    const epoch_aeron_config_t *config,
+    char *error,
+    size_t error_len)
 {
     aeron_async_add_subscription_t *sub_async = NULL;
     if (aeron_async_add_subscription(
@@ -105,6 +151,8 @@ static int epoch_aeron_init_subscription(epoch_aeron_transport_t *transport, cha
         epoch_aeron_set_error_with_aeron(error, error_len, "aeron_async_add_subscription failed");
         return -1;
     }
+    int timeout_ms = epoch_aeron_deadline_ms(config);
+    int64_t deadline_ms = timeout_ms < 0 ? -1 : epoch_aeron_now_ms() + timeout_ms;
     while (1)
     {
         int poll_result = aeron_async_add_subscription_poll(&transport->subscription, sub_async);
@@ -115,6 +163,11 @@ static int epoch_aeron_init_subscription(epoch_aeron_transport_t *transport, cha
         if (poll_result < 0)
         {
             epoch_aeron_set_error_with_aeron(error, error_len, "aeron_async_add_subscription_poll failed");
+            return -1;
+        }
+        if (epoch_aeron_timed_out(deadline_ms))
+        {
+            epoch_aeron_set_error(error, error_len, "subscription not ready within timeout");
             return -1;
         }
         sched_yield();
@@ -203,12 +256,12 @@ epoch_aeron_transport_t *epoch_aeron_open(
         return NULL;
     }
 
-    if (epoch_aeron_init_publication(transport, error, error_len) < 0)
+    if (epoch_aeron_init_publication(transport, &transport->config, error, error_len) < 0)
     {
         epoch_aeron_close(transport);
         return NULL;
     }
-    if (epoch_aeron_init_subscription(transport, error, error_len) < 0)
+    if (epoch_aeron_init_subscription(transport, &transport->config, error, error_len) < 0)
     {
         epoch_aeron_close(transport);
         return NULL;

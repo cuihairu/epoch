@@ -6,6 +6,7 @@ extern "C" {
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -15,6 +16,7 @@ namespace epoch {
 
 namespace {
 
+constexpr std::int32_t kDefaultReadyTimeoutMs = 10000;
 constexpr std::uint8_t kFrameVersion = 1;
 constexpr std::size_t kFrameLength = 56;
 constexpr std::size_t kOffsetVersion = 0;
@@ -36,6 +38,43 @@ std::int64_t read_i64(const std::uint8_t *buffer, std::size_t offset)
     std::int64_t value = 0;
     std::memcpy(&value, buffer + offset, sizeof(value));
     return value;
+}
+
+std::int32_t ready_timeout_ms(const AeronConfig &config)
+{
+    if (config.ready_timeout_ms > 0)
+    {
+        return config.ready_timeout_ms;
+    }
+    if (config.ready_timeout_ms == 0)
+    {
+        return kDefaultReadyTimeoutMs;
+    }
+    return -1;
+}
+
+using Clock = std::chrono::steady_clock;
+
+std::int64_t deadline_after(std::int32_t timeout_ms)
+{
+    if (timeout_ms < 0)
+    {
+        return -1;
+    }
+    auto now = Clock::now();
+    auto deadline = now + std::chrono::milliseconds(timeout_ms);
+    return std::chrono::duration_cast<std::chrono::milliseconds>(deadline.time_since_epoch()).count();
+}
+
+bool deadline_exceeded(std::int64_t deadline_ms)
+{
+    if (deadline_ms < 0)
+    {
+        return false;
+    }
+    auto now = Clock::now();
+    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    return now_ms >= deadline_ms;
 }
 
 void encode_message(std::uint8_t *buffer, const Message &message)
@@ -180,6 +219,7 @@ AeronTransport::AeronTransport(AeronConfig config) : config_(std::move(config))
             detail::aeron_hooks().async_add_publication(
                 &pub_async, client_, config_.channel.c_str(), config_.stream_id),
                        "aeron_async_add_publication failed");
+        std::int64_t publication_deadline = deadline_after(ready_timeout_ms(config_));
         while (true)
         {
             int poll_result = detail::aeron_hooks().async_add_publication_poll(&publication_, pub_async);
@@ -188,6 +228,10 @@ AeronTransport::AeronTransport(AeronConfig config) : config_(std::move(config))
                 break;
             }
             throw_if_error(poll_result, "aeron_async_add_publication_poll failed");
+            if (deadline_exceeded(publication_deadline))
+            {
+                throw std::runtime_error("publication not ready within timeout");
+            }
             std::this_thread::yield();
         }
         throw_if_null(publication_, "publication is null");
@@ -204,6 +248,7 @@ AeronTransport::AeronTransport(AeronConfig config) : config_(std::move(config))
                 nullptr,
                 nullptr),
             "aeron_async_add_subscription failed");
+        std::int64_t subscription_deadline = deadline_after(ready_timeout_ms(config_));
         while (true)
         {
             int poll_result = detail::aeron_hooks().async_add_subscription_poll(&subscription_, sub_async);
@@ -212,6 +257,10 @@ AeronTransport::AeronTransport(AeronConfig config) : config_(std::move(config))
                 break;
             }
             throw_if_error(poll_result, "aeron_async_add_subscription_poll failed");
+            if (deadline_exceeded(subscription_deadline))
+            {
+                throw std::runtime_error("subscription not ready within timeout");
+            }
             std::this_thread::yield();
         }
         throw_if_null(subscription_, "subscription is null");

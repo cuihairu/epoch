@@ -47,6 +47,8 @@ struct StubState {
     int subscription_poll_fail_after = -1;
     bool async_pub_poll_zero_first = false;
     bool async_sub_poll_zero_first = false;
+    bool async_pub_poll_never_ready = false;
+    bool async_sub_poll_never_ready = false;
     bool publication_null = false;
     bool subscription_null = false;
     int publication_poll_calls = 0;
@@ -144,6 +146,10 @@ int stub_async_add_publication_poll(aeron_publication_t **publication, aeron_asy
             g_state->async_pub_poll_zero_first = false;
             return 0;
         }
+        if (g_state->async_pub_poll_never_ready)
+        {
+            return 0;
+        }
     }
     *publication = reinterpret_cast<aeron_publication_t *>(&dummy);
     return 1;
@@ -186,6 +192,10 @@ int stub_async_add_subscription_poll(aeron_subscription_t **subscription, aeron_
         if (g_state->async_sub_poll_zero_first)
         {
             g_state->async_sub_poll_zero_first = false;
+            return 0;
+        }
+        if (g_state->async_sub_poll_never_ready)
+        {
             return 0;
         }
     }
@@ -731,6 +741,59 @@ bool test_aeron_async_retry_yield_loops()
     return ok;
 }
 
+bool test_aeron_publication_ready_timeout()
+{
+    // A driver that never completes the publication must not spin forever: the
+    // constructor fails after ready_timeout_ms with a timeout error.
+    StubState state;
+    state.async_pub_poll_never_ready = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronConfig config{"aeron:ipc", 67, "", 4, 2};
+        config.ready_timeout_ms = 50;
+        epoch::AeronTransport transport(config);
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
+bool test_aeron_subscription_ready_timeout()
+{
+    // Same guarantee for the subscription readiness wait.
+    StubState state;
+    state.async_sub_poll_never_ready = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronConfig config{"aeron:ipc", 68, "", 4, 2};
+        config.ready_timeout_ms = 50;
+        epoch::AeronTransport transport(config);
+        (void)transport;
+        ok = false;
+    }
+    catch (const std::runtime_error &)
+    {
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
 bool expect_single_counter(const epoch::AeronStats &stats, int which)
 {
     switch (which)
@@ -1004,6 +1067,14 @@ int main()
         return 1;
     }
     if (!test_aeron_async_retry_yield_loops())
+    {
+        return 1;
+    }
+    if (!test_aeron_publication_ready_timeout())
+    {
+        return 1;
+    }
+    if (!test_aeron_subscription_ready_timeout())
     {
         return 1;
     }
