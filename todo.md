@@ -225,3 +225,39 @@
 ### 复现方法
 
 - 同 2026-11-09 节「复现方法」各命令，本轮逐条实测通过；.NET 未覆盖行明细：`python3` 解析 `Epoch.Tests/TestResults/*/coverage.cobertura.xml` 按 class 过滤 `AeronTransport.cs`；Go 未覆盖块：`grep aeron_transport.go go/coverage.out` 中计数为 0 的块。
+
+## 审核修复批 2026-11-12（epoch-audit-fix 任务书：audit-batch3-6repos-2026-11-11.md 的 epoch 节）
+
+### 结论
+
+- [x] P0（无内存安全级问题）→ 按任务书推进 P1；P1 共 4 项，本次修复 3 项，1 项 BLOCKED。
+- [x] P1-1 毒帧（Java poll 回调 decode 异常使 poll 永久失效）已修：commit 97dbe92。
+- [x] P1-2 就绪等待忙自旋无超时（native C + C++ 绑定）已修：commit bf115b5。
+- [x] P1-3 嵌入式 MediaDriver 构造失败泄漏已修：commit d305a4a。
+- [x] P1-4 Node 64 位精度丢失（bigint 破坏性 API 变更）：**BLOCKED 未处理**——todo.md:24 自 2026-11-04 起历次复核保持「缺设计拍板→不重试」，本轮复核 node/src/index.ts:14-21、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，全仓仍无拍板记录；本次未改，待用户设计拍板后另批处理。
+
+### 各项修复与证据
+
+**P1-3（先修，独立小步）：java 驱动构造失败泄漏**
+- 病灶：`java/src/main/java/io/epoch/AeronTransport.java:68-90` 原 `RealAeronAdapter` 构造中 `MediaDriver.launch` 成功后，`Aeron.connect`/`addPublication`/`addSubscription` 任一步抛异常则已启动的 embedded driver 永不关闭（后台线程 + 目录泄漏，`dirDeleteOnShutdown` 不执行）。
+- 修法：构造内资源局部化（driver/aeron/publication/subscription 局部变量），try/catch(RuntimeException) 兜底按逆序释放已创建资源后 rethrow，成功后再赋 final 字段（AeronTransport.java:68-104）。
+- 回归测试：`java/src/test/java/io/epoch/VectorTestMain.java`（leak 块）——畸形 channel（`addPublication` 同步抛 `RegistrationException`，已用 Aeron 1.49.3 实证）触发构造失败，断言：异常被抛出 且 driver 目录被删（`dirDeleteOnShutdown` 使 driver.close() 删目录，目录消失即证明 driver 实际关闭而非泄漏后台线程）；无修复时该测试失败（driver 仍在运行、目录残留）。
+- 验证：`java/scripts/run-tests.sh` exit 0、`run-coverage.sh` exit 0（jacoco 100%）。commit d305a4a。
+
+**P1-1（次修）：java 毒帧使 poll 永久失效**
+- 病灶：`AeronTransport.java:179`（原）poll 回调内 `AeronMessageCodec.decode` 遇版本不匹配抛 `IllegalArgumentException`，异常穿透 `subscription.poll` → 帧 position 不提交 → 下次 poll 重读同一帧再抛，永久失效。
+- 修法：handler 内 try/catch(IllegalArgumentException) → 跳过坏帧并计数（`stats.recordReceivedError()`，AeronStats 新增 `receivedErrorCount` AtomicLong + getter），不再让异常穿透（AeronTransport.java:175-186、:206-214、:233-236、:241-245）。
+- 回归测试：VectorTestMain（毒帧块，stream 45）——连续 2 个坏版本帧 → poll(4) 返回空且不抛；随后 1 个好帧 → poll 返回该帧；断言 `receivedErrorCount()==2`、`receivedCount()==1`（坏帧被消费而非永久重读）。
+- 验证：run-tests.sh exit 0、run-coverage.sh exit 0。commit 97dbe92。
+
+**P1-2（最大，跨 native+C++ 绑定）：就绪等待无超时**
+- 病灶：`native/src/epoch_aeron.c:70-83,108-121` 与 `cpp/src/aeron_transport.cpp:183-192,207-216`（原）`while(true)` 忙自旋 `sched_yield()`/`yield()` 等待 publication/subscription 就绪，无 deadline；driver 未就绪时构造永久挂死且烧满 CPU。
+- 修法：native C 配置新增 `ready_timeout_ms`（`epoch_aeron.h:14-26`；0→默认 10s、负→无限、正→显式），`epoch_aeron_init_publication/subscription` 增加 `CLOCK_MONOTONIC` deadline，超时置错误「publication/subscription not ready within timeout」并返回 -1（epoch_aeron.c:64-96、:118-176）；C++ 绑定 `AeronConfig` 增 `ready_timeout_ms`（aeron_transport.h:12-21）并用 `steady_clock` deadline 同样在超时抛 `std::runtime_error`（aeron_transport.cpp:60-89、:203-213、:237-247）；绑定结构同步：Python `_CConfig`/`AeronConfig`、Node koffi struct/`AeronConfig`、.NET `AeronConfigNative`/record 各加 `ready_timeout_ms` 透传（Go 由 cgo 自动对齐）；默认值 0 → 各绑定默认 10s 超时（此前为无限）。
+- 回归测试：`cpp/tests/aeron_transport_test.cpp` 新增 `test_aeron_publication_ready_timeout`/`test_aeron_subscription_ready_timeout`（stub hook `async_*_poll` 恒返 0、`ready_timeout_ms=50`）——无修复时构造挂死（已实证：临时移除 deadline 检查后 ctest `epoch_cpp_aeron` 超 5s 被 timeout 杀死），有修复 0.24s 绿。`native/tests/epoch_aeron_c_test.c` 新增（`epoch_aeron_open` 空 channel → NULL+"invalid config"，即时 0.02s）挂入 `native/CMakeLists.txt` ctest 并经 `native/build.sh` 在 go/node/dotnet CI 运行。
+- 说明：native C poll 超时分支（stale cnc/驱动半死场景）已手工实证（stale driver 目录 + `ready_timeout_ms=100` → `handle=(nil) err=[publication not ready within timeout]`），但无自动化回归——无 driver 时 `aeron_init` 因 CnC 缺失快速失败（不进入 poll 循环），需 driver 才可到达；C 驱动子模块未检出、无 driver 的 open 各路径客户端自身固定 ~10s，不宜入 CI；该逻辑与 C++ 绑定同构，回归由上述 C++ stub 测试保障。
+- 验证：ctest cpp 3/3（0.21s）、native ctest 1/1（0.02s）、Go ok（10.0s，含真实 open 失败路径）、Python 20/20、Node 21/21、.NET 17/17。commit bf115b5。
+
+### 全量验证（本批收尾）
+
+- [x] 六语言全绿：Go `go test -count=1` ok、Python 20/20、Node 21/21、C++ ctest 3/3、Java run-tests.sh + run-coverage.sh exit 0、.NET 17/17；`go vet ./...` 干净。
+- [x] 未改任何测试期望绕过；每项配真实行为回归测试；无 force push/tag。
