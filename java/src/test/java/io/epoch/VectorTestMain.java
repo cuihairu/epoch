@@ -386,6 +386,24 @@ public final class VectorTestMain {
         realAdapter.close();
         realAdapter.close();
 
+        // Constructor cleanup: when the embedded driver launches but a later step
+        // fails (invalid channel -> RegistrationException from addPublication), the
+        // constructor must close the launched driver and rethrow. dirDeleteOnShutdown
+        // removes the driver directory on close, so the directory disappearing proves
+        // the driver was actually shut down instead of leaking a background thread.
+        Path leakDir = Files.createTempDirectory("epoch-aeron-leak");
+        AeronTransport.AeronConfig leakConfig = new AeronTransport.AeronConfig(
+            "not-aeron-channel", 47, leakDir.toString(), 64, 10,
+            new org.agrona.concurrent.BusySpinIdleStrategy(), true, true, true);
+        boolean adapterConstructorFailed = false;
+        try {
+            new AeronTransport.RealAeronAdapter(leakConfig);
+        } catch (RuntimeException ex) {
+            adapterConstructorFailed = true;
+        }
+        ensure(adapterConstructorFailed, "RealAeronAdapter should fail on invalid channel");
+        ensure(!Files.exists(leakDir), "RealAeronAdapter should close driver on construction failure");
+
         // Transport-level contract still holds: after a successful close the adapter is
         // fully released and a second transport close is a no-op.
         AeronTransport realTransport = new AeronTransport(realConfig);

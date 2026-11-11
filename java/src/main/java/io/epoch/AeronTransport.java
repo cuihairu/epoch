@@ -67,25 +67,47 @@ public final class AeronTransport implements Transport {
 
         RealAeronAdapter(AeronConfig config) {
             MediaDriver driver = null;
+            Aeron aeron = null;
+            Publication publication = null;
+            Subscription subscription = null;
             String aeronDir = config.aeronDirectory();
-            if (config.embeddedDriver()) {
-                MediaDriver.Context driverContext = new MediaDriver.Context();
-                if (aeronDir != null && !aeronDir.isBlank()) {
-                    driverContext.aeronDirectoryName(aeronDir);
+            try {
+                if (config.embeddedDriver()) {
+                    MediaDriver.Context driverContext = new MediaDriver.Context();
+                    if (aeronDir != null && !aeronDir.isBlank()) {
+                        driverContext.aeronDirectoryName(aeronDir);
+                    }
+                    driverContext.dirDeleteOnStart(config.dirDeleteOnStart());
+                    driverContext.dirDeleteOnShutdown(config.dirDeleteOnShutdown());
+                    driver = MediaDriver.launch(driverContext);
+                    aeronDir = driverContext.aeronDirectoryName();
                 }
-                driverContext.dirDeleteOnStart(config.dirDeleteOnStart());
-                driverContext.dirDeleteOnShutdown(config.dirDeleteOnShutdown());
-                driver = MediaDriver.launch(driverContext);
-                aeronDir = driverContext.aeronDirectoryName();
-            }
 
-            Aeron.Context context = new Aeron.Context();
-            if (aeronDir != null && !aeronDir.isBlank()) {
-                context.aeronDirectoryName(aeronDir);
+                Aeron.Context context = new Aeron.Context();
+                if (aeronDir != null && !aeronDir.isBlank()) {
+                    context.aeronDirectoryName(aeronDir);
+                }
+                aeron = Aeron.connect(context);
+                publication = aeron.addPublication(config.channel(), config.streamId());
+                subscription = aeron.addSubscription(config.channel(), config.streamId());
+            } catch (RuntimeException e) {
+                if (subscription != null) {
+                    subscription.close();
+                }
+                if (publication != null) {
+                    publication.close();
+                }
+                if (aeron != null) {
+                    aeron.close();
+                }
+                if (driver != null) {
+                    driver.close();
+                }
+                throw e;
             }
-            this.aeron = Aeron.connect(context);
-            this.publication = aeron.addPublication(config.channel(), config.streamId());
-            this.subscription = aeron.addSubscription(config.channel(), config.streamId());
+            this.aeron = aeron;
+            this.publication = publication;
+            this.subscription = subscription;
             this.mediaDriver = driver;
         }
 
