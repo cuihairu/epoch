@@ -374,6 +374,43 @@ public final class VectorTestMain {
             shortFrameTransport.close();
         }
 
+        // Poison-frame tolerance: a full-length frame with an unsupported version
+        // makes decode throw. The poll path must skip it, count it as a received
+        // error, and keep working for later frames instead of failing the poll.
+        FakeAeronAdapter poisonFrameAdapter = new FakeAeronAdapter();
+        AeronTransport poisonFrameTransport = new AeronTransport(
+            new AeronTransport.AeronConfig(
+                "aeron:ipc", 45, "", 64, 10,
+                new org.agrona.concurrent.BusySpinIdleStrategy(), false, false, false),
+            poisonFrameAdapter);
+        try {
+            org.agrona.concurrent.UnsafeBuffer poisonBuffer = new org.agrona.concurrent.UnsafeBuffer(
+                new org.agrona.ExpandableArrayBuffer(AeronMessageCodec.FRAME_LENGTH));
+            AeronMessageCodec.encode(poisonBuffer, 0, new Engine.Message(2, 1, 1, 1, 1, 1, 6));
+            poisonBuffer.putByte(0, (byte) 2);
+            byte[] poisonFrame = new byte[AeronMessageCodec.FRAME_LENGTH];
+            poisonBuffer.getBytes(0, poisonFrame);
+            poisonFrameAdapter.seedFrame(poisonFrame);
+            poisonFrameAdapter.seedFrame(poisonFrame);
+            ensure(poisonFrameTransport.poll(4).isEmpty(), "AeronTransport poison frame should be skipped");
+
+            org.agrona.concurrent.UnsafeBuffer goodBuffer = new org.agrona.concurrent.UnsafeBuffer(
+                new org.agrona.ExpandableArrayBuffer(AeronMessageCodec.FRAME_LENGTH));
+            AeronMessageCodec.encode(goodBuffer, 0, new Engine.Message(3, 1, 1, 1, 1, 1, 7));
+            byte[] goodFrame = new byte[AeronMessageCodec.FRAME_LENGTH];
+            goodBuffer.getBytes(0, goodFrame);
+            poisonFrameAdapter.seedFrame(goodFrame);
+            List<Engine.Message> afterPoison = poisonFrameTransport.poll(4);
+            ensure(afterPoison.size() == 1 && afterPoison.get(0).payload == 7,
+                "AeronTransport poll after poison frame mismatch");
+            ensure(poisonFrameTransport.stats().receivedErrorCount() == 2,
+                "AeronTransport received error count mismatch");
+            ensure(poisonFrameTransport.stats().receivedCount() == 1,
+                "AeronTransport received count after poison mismatch");
+        } finally {
+            poisonFrameTransport.close();
+        }
+
         // Real Aeron adapter idempotent re-close: the partial-close retry path in
         // AeronTransport.close() assumes RealAeronAdapter.close() can be called again
         // after a partial release (publication/subscription/aeron/mediaDriver each

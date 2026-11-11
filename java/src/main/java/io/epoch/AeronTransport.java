@@ -198,7 +198,14 @@ public final class AeronTransport implements Transport {
                 if (length < AeronMessageCodec.FRAME_LENGTH) {
                     return;
                 }
-                out.add(AeronMessageCodec.decode(buffer, offset));
+                try {
+                    out.add(AeronMessageCodec.decode(buffer, offset));
+                } catch (IllegalArgumentException ex) {
+                    // Skip poison frames: rethrowing would keep the fragment
+                    // unacknowledged, so the next poll would deliver it again.
+                    stats.recordReceivedError();
+                    return;
+                }
                 stats.recordReceived();
             }, limit);
             return out;
@@ -228,6 +235,7 @@ public final class AeronTransport implements Transport {
     public static final class AeronStats {
         private final AtomicLong sentCount = new AtomicLong();
         private final AtomicLong receivedCount = new AtomicLong();
+        private final AtomicLong receivedErrorCount = new AtomicLong();
         private final AtomicLong offerBackPressure = new AtomicLong();
         private final AtomicLong offerNotConnected = new AtomicLong();
         private final AtomicLong offerAdminAction = new AtomicLong();
@@ -256,12 +264,20 @@ public final class AeronTransport implements Transport {
             receivedCount.incrementAndGet();
         }
 
+        private void recordReceivedError() {
+            receivedErrorCount.incrementAndGet();
+        }
+
         public long sentCount() {
             return sentCount.get();
         }
 
         public long receivedCount() {
             return receivedCount.get();
+        }
+
+        public long receivedErrorCount() {
+            return receivedErrorCount.get();
         }
 
         public long offerBackPressure() {
