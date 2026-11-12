@@ -27,6 +27,10 @@ ignore:
   - "cppbuild/**"
   - "third_party/**"
   - "node_modules/**"
+  # Dead paths from node/ renames (d4f1823): legacy js-era files whose old
+  # upload entries linger in codecov history.
+  - "node/actor-id.js"
+  - "node/index.js"
 
 fixes:
   - "github.com/cuihairu/epoch/::"
