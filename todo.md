@@ -285,3 +285,9 @@
 - [x] CI 7/7 全绿（755516f：build-cpp/java/dotnet/go/node/python + docs 全 success，2026-11-12）。
 - [x] 六语言本地测试全绿（沿用上批全量验证）。
 - [x] 三轮均单 commit 英文简短信息、无 AI 痕迹；无 tag、无 force push、未动版本发布。
+## Codex 深审发现（2026-11-12，luna profile 近5 commit 审核，0C/2M/3m，待修）
+
+- [ ] [M] Go Aeron 配置补 ReadyTimeout（go/aeron_transport.go:19、native/include/epoch_aeron.h:22）——cConfig 缺就绪超时字段
+- [ ] [M] 多语言 poll 毒帧处理对齐 Java 语义（cpp/src/aeron_transport.cpp:358、go/aeron_transport.go:181、node/src/index.ts:159、python）
+- [ ] [m] a2af505 混入测试拆分说明（cpp/tests/aeron_transport_test.cpp:797）——commit message 与内容不符
+- [ ] [m] todo.md:89/99/235/249 证据行号随代码更新（tracked 文件 516→603 行漂移）
