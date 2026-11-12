@@ -14,6 +14,19 @@ ignore:
   - "go/*_test.go"
   - "node/test/**"
   - "python/tests/**"
+  # Stale carryforward entries from historical uploads with unstripped or
+  # project-relative path spellings; none of these are real repo paths.
+  - "github.com/**"
+  - "home/**"
+  - "Users/**"
+  - "io/**"
+  - "epoch/**"
+  - "src/**"
+  - "test/**"
+  - "tests/**"
+  - "cppbuild/**"
+  - "third_party/**"
+  - "node_modules/**"
 
 fixes:
   - "github.com/cuihairu/epoch/::"
