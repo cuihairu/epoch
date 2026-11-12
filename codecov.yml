@@ -7,6 +7,14 @@ coverage:
       default:
         target: 0
 
+ignore:
+  - "cpp/tests/**"
+  - "java/src/test/**"
+  - "dotnet/Epoch.Tests/**"
+  - "go/*_test.go"
+  - "node/test/**"
+  - "python/tests/**"
+
 fixes:
   - "github.com/cuihairu/epoch/::"
   - "/home/runner/work/epoch/epoch/::"

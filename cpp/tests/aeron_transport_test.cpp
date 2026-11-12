@@ -794,6 +794,35 @@ bool test_aeron_subscription_ready_timeout()
     return ok;
 }
 
+bool test_aeron_negative_timeout_waits_indefinitely()
+{
+    // ready_timeout_ms = -1 means wait forever: a readiness that completes
+    // after a few pending polls must still succeed, and the deadline check
+    // must never fire.
+    StubState state;
+    state.async_pub_poll_zero_first = true;
+    state.async_sub_poll_zero_first = true;
+    g_state = &state;
+    auto previous = epoch::test::aeron_hooks();
+    epoch::test::aeron_hooks() = build_stub_hooks();
+
+    bool ok = true;
+    try
+    {
+        epoch::AeronConfig config{"aeron:ipc", 69, "", 4, 2};
+        config.ready_timeout_ms = -1;
+        epoch::AeronTransport transport(config);
+        transport.close();
+    }
+    catch (const std::runtime_error &)
+    {
+        ok = false;
+    }
+
+    epoch::test::aeron_hooks() = previous;
+    return ok;
+}
+
 bool expect_single_counter(const epoch::AeronStats &stats, int which)
 {
     switch (which)
@@ -1075,6 +1104,10 @@ int main()
         return 1;
     }
     if (!test_aeron_subscription_ready_timeout())
+    {
+        return 1;
+    }
+    if (!test_aeron_negative_timeout_waits_indefinitely())
     {
         return 1;
     }
