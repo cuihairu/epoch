@@ -235,3 +235,24 @@ func TestAeronTransportClosedSend(t *testing.T) {
 		}
 	})
 }
+
+func TestAeronTransportPassesReadyTimeout(t *testing.T) {
+	dummy := byte(0)
+	handle := aeronHandle(unsafe.Pointer(&dummy))
+	var got AeronConfig
+	withAeronStubs(aeronStubSet{
+		open: func(config AeronConfig, errBuf []byte) aeronHandle {
+			got = config
+			return handle
+		},
+	}, func() {
+		NewAeronTransport(AeronConfig{
+			Channel:        "aeron:udp?endpoint=localhost:40123",
+			StreamID:       1,
+			ReadyTimeoutMs: 250,
+		})
+	})
+	if got.ReadyTimeoutMs != 250 {
+		t.Fatalf("expected ready timeout 250, got %d", got.ReadyTimeoutMs)
+	}
+}

@@ -22,6 +22,9 @@ type AeronConfig struct {
 	AeronDirectory   string
 	FragmentLimit    int
 	OfferMaxAttempts int
+	// ReadyTimeoutMs bounds the publication/subscription readiness wait in
+	// epoch_aeron_open: 0 selects the default (10s), negative waits forever.
+	ReadyTimeoutMs int
 }
 
 type AeronStats struct {
@@ -61,6 +64,7 @@ var (
 			aeron_directory:    cDir,
 			fragment_limit:     C.int32_t(config.FragmentLimit),
 			offer_max_attempts: C.int32_t(config.OfferMaxAttempts),
+			ready_timeout_ms:   C.int32_t(config.ReadyTimeoutMs),
 		}
 		handle := C.epoch_aeron_open(
 			&cConfig,
