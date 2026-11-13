@@ -6,7 +6,7 @@ import (
 	"unsafe"
 )
 
-func TestAeronPollRejectsCorruptFrame(t *testing.T) {
+func TestAeronPollSkipsCorruptFrame(t *testing.T) {
 	dummy := byte(0)
 	frame := make([]byte, aeronFrameLength)
 	binary.LittleEndian.PutUint64(frame[8:16], 1)
@@ -21,9 +21,12 @@ func TestAeronPollRejectsCorruptFrame(t *testing.T) {
 	}, func() {
 		transport := NewAeronTransport(AeronConfig{})
 		defer transport.Close()
-		assertPanic(t, "unsupported aeron frame version", func() {
-			transport.Poll(1)
-		})
+		if out := transport.Poll(1); len(out) != 0 {
+			t.Fatalf("expected corrupt frame to be skipped, got %v", out)
+		}
+		if got := transport.Stats().ReceivedErrors; got != 1 {
+			t.Fatalf("expected 1 received error, got %d", got)
+		}
 	})
 }
 

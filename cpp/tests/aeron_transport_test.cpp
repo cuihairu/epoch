@@ -403,6 +403,11 @@ bool test_aeron_invalid_frame_ignored()
         {
             ok = false;
         }
+        const auto &stats = transport.stats();
+        if (stats.received_errors != 1 || stats.received_count != 1)
+        {
+            ok = false;
+        }
     }
 
     epoch::test::aeron_hooks() = previous;

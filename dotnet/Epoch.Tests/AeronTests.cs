@@ -27,18 +27,42 @@ public class AeronTests
     }
 
     [Fact]
-    public void DecodeFrameRejectsShortAndUnsupportedFrames()
+    public void PollSkipsShortAndUnsupportedFrames()
     {
         var native = new FakeNative();
         var transport = new AeronTransport(new AeronTransport.AeronConfig("aeron:ipc", 2, ""), native);
         native.Enqueue(new byte[4]);
-        Assert.Throws<InvalidOperationException>(() => transport.Poll(1));
 
         var frame = new byte[56];
         frame[0] = 2;
         native.Enqueue(frame);
-        Assert.Throws<InvalidOperationException>(() => transport.Poll(1));
+
+        Assert.Empty(transport.Poll(2));
+        Assert.Equal(2, transport.Stats.ReceivedErrors);
         transport.Close();
+        Assert.Equal(2, transport.Stats.ReceivedErrors);
+    }
+
+    [Fact]
+    public void PollSkipsPoisonFramesAndDeliversGoodOnes()
+    {
+        var native = new FakeNative();
+        var transport = new AeronTransport(new AeronTransport.AeronConfig("aeron:ipc", 7, ""), native);
+        var good = new byte[56];
+        good[0] = 1;
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(good.AsSpan(48, 8), 99);
+        var bad = (byte[])good.Clone();
+        bad[0] = 2;
+        native.Enqueue(bad);
+        native.Enqueue(bad);
+        native.Enqueue(good);
+        native.ReturnedStats = new AeronTransport.AeronStats(0, 1, 0, 0, 0, 0, 0, 0);
+
+        var batch = transport.Poll(4);
+        Assert.Single(batch);
+        Assert.Equal(99, batch[0].Payload);
+        Assert.Equal(2, transport.Stats.ReceivedErrors);
+        Assert.Equal(1, transport.Stats.ReceivedCount);
     }
 
     [Fact]
@@ -52,7 +76,8 @@ public class AeronTests
         native.SendResults.Add(-1);
         Assert.Throws<InvalidOperationException>(() => transport.Send(message));
         native.Enqueue(new byte[4]);
-        Assert.Throws<InvalidOperationException>(() => transport.Poll(1));
+        Assert.Empty(transport.Poll(1));
+        Assert.Equal(1, transport.Stats.ReceivedErrors);
 
         transport.Close();
         transport.Close();

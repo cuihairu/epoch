@@ -29,6 +29,7 @@ struct AeronStats {
     std::int64_t offer_closed = 0;
     std::int64_t offer_max_position = 0;
     std::int64_t offer_failed = 0;
+    std::int64_t received_errors = 0;
 };
 
 class AeronTransport final : public Transport {

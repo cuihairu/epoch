@@ -36,12 +36,14 @@ type AeronStats struct {
 	OfferClosed       int64
 	OfferMaxPosition  int64
 	OfferFailed       int64
+	ReceivedErrors    int64
 }
 
 type AeronTransport struct {
-	config AeronConfig
-	handle aeronHandle
-	closed bool
+	config         AeronConfig
+	handle         aeronHandle
+	closed         bool
+	receivedErrors int64
 }
 
 const aeronFrameLength = 56
@@ -184,7 +186,10 @@ func (t *AeronTransport) Poll(max int) []Message {
 		offset := i * aeronFrameLength
 		message, err := decodeAeronFrame(frameBuf[offset : offset+aeronFrameLength])
 		if err != nil {
-			panic(err)
+			// Skip poison frames like the Java binding: the C core already
+			// consumed the fragment, so panicking would only lose the batch.
+			t.receivedErrors++
+			continue
 		}
 		out = append(out, message)
 	}
@@ -204,12 +209,13 @@ func (t *AeronTransport) Close() {
 
 func (t *AeronTransport) Stats() AeronStats {
 	if t.handle == nil {
-		return AeronStats{}
+		return AeronStats{ReceivedErrors: t.receivedErrors}
 	}
 	var stats AeronStats
 	if aeronStats(t.handle, &stats) < 0 {
-		return AeronStats{}
+		return AeronStats{ReceivedErrors: t.receivedErrors}
 	}
+	stats.ReceivedErrors = t.receivedErrors
 	return stats
 }
 

@@ -12,6 +12,7 @@ export type AeronStats = {
   offerClosed: number;
   offerMaxPosition: number;
   offerFailed: number;
+  receivedErrors: number;
 };
 
 export type AeronNative = {
@@ -130,7 +131,8 @@ export function loadAeronNative(koffiImpl?: any, libraryPath?: string): AeronNat
           offerAdminAction: 0,
           offerClosed: 0,
           offerMaxPosition: 0,
-          offerFailed: 0
+          offerFailed: 0,
+          receivedErrors: 0
         };
       }
       return {
@@ -141,7 +143,8 @@ export function loadAeronNative(koffiImpl?: any, libraryPath?: string): AeronNat
         offerAdminAction: Number(stats.offer_admin_action ?? 0),
         offerClosed: Number(stats.offer_closed ?? 0),
         offerMaxPosition: Number(stats.offer_max_position ?? 0),
-        offerFailed: Number(stats.offer_failed ?? 0)
+        offerFailed: Number(stats.offer_failed ?? 0),
+        receivedErrors: 0
       };
     },
     close(handle: unknown) {

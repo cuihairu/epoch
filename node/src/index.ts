@@ -137,6 +137,7 @@ export class AeronTransport {
   private readonly native: AeronNative;
   private readonly handle: unknown;
   private closed = false;
+  private receivedErrors = 0;
 
   constructor(public readonly config: AeronConfig, native?: AeronNative) {
     this.native = native ?? loadAeronNative();
@@ -156,7 +157,17 @@ export class AeronTransport {
       return [];
     }
     const frames = this.native.poll(this.handle, max);
-    return frames.map(decodeAeronFrame);
+    const out: Message[] = [];
+    for (const frame of frames) {
+      try {
+        out.push(decodeAeronFrame(frame));
+      } catch {
+        // Skip poison frames like the Java binding: the C core already
+        // consumed the fragment, so only accounting is missing.
+        this.receivedErrors++;
+      }
+    }
+    return out;
   }
 
   stats(): AeronStats {
@@ -169,10 +180,11 @@ export class AeronTransport {
         offerAdminAction: 0,
         offerClosed: 0,
         offerMaxPosition: 0,
-        offerFailed: 0
+        offerFailed: 0,
+        receivedErrors: this.receivedErrors
       };
     }
-    return this.native.stats(this.handle);
+    return { ...this.native.stats(this.handle), receivedErrors: this.receivedErrors };
   }
 
   close() {

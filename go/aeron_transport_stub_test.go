@@ -256,3 +256,40 @@ func TestAeronTransportPassesReadyTimeout(t *testing.T) {
 		t.Fatalf("expected ready timeout 250, got %d", got.ReadyTimeoutMs)
 	}
 }
+
+func TestAeronTransportPollSkipsPoisonFrames(t *testing.T) {
+	dummy := byte(0)
+	handle := aeronHandle(unsafe.Pointer(&dummy))
+	sample := Message{Epoch: 1, ChannelID: 1, SourceID: 1, SourceSeq: 1, SchemaID: 1, Qos: 1, Payload: 99}
+	good, err := encodeAeronFrame(sample)
+	if err != nil {
+		t.Fatalf("encode failed: %v", err)
+	}
+	bad := append([]byte(nil), good...)
+	bad[0] = 2
+	withAeronStubs(aeronStubSet{
+		open: func(config AeronConfig, errBuf []byte) aeronHandle {
+			return handle
+		},
+		poll: func(h aeronHandle, out []byte, max int, errBuf []byte) (int, int) {
+			copy(out[0:aeronFrameLength], bad)
+			copy(out[aeronFrameLength:2*aeronFrameLength], bad)
+			copy(out[2*aeronFrameLength:3*aeronFrameLength], good)
+			return 3, 3
+		},
+		stats: func(h aeronHandle, out *AeronStats) int {
+			out.ReceivedCount = 1
+			return 0
+		},
+	}, func() {
+		transport := NewAeronTransport(AeronConfig{Channel: "aeron:udp?endpoint=localhost:40123", StreamID: 1})
+		out := transport.Poll(4)
+		if len(out) != 1 || out[0] != sample {
+			t.Fatalf("expected only the good frame, got %v", out)
+		}
+		stats := transport.Stats()
+		if stats.ReceivedErrors != 2 || stats.ReceivedCount != 1 {
+			t.Fatalf("expected errors=2 received=1, got %v", stats)
+		}
+	})
+}

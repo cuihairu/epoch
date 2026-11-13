@@ -22,7 +22,8 @@ public sealed class AeronTransport : ITransport
         long OfferAdminAction,
         long OfferClosed,
         long OfferMaxPosition,
-        long OfferFailed);
+        long OfferFailed,
+        long ReceivedErrors = 0);
 
     private const byte FrameVersion = 1;
     private const int FrameLength = 56;
@@ -30,6 +31,7 @@ public sealed class AeronTransport : ITransport
     private readonly IAeronNative native;
     private readonly IntPtr handle;
     private bool closed;
+    private long receivedErrors;
 
     public AeronTransport(AeronConfig config, IAeronNative? native = null)
     {
@@ -40,7 +42,9 @@ public sealed class AeronTransport : ITransport
 
     public AeronConfig Config { get; }
 
-    public AeronStats Stats => closed ? new AeronStats(0, 0, 0, 0, 0, 0, 0, 0) : native.Stats(handle);
+    public AeronStats Stats => closed
+        ? new AeronStats(0, 0, 0, 0, 0, 0, 0, 0, receivedErrors)
+        : native.Stats(handle) with { ReceivedErrors = receivedErrors };
 
     public void Send(Message message)
     {
@@ -62,7 +66,16 @@ public sealed class AeronTransport : ITransport
         var output = new List<Message>(frames.Count);
         foreach (var frame in frames)
         {
-            output.Add(DecodeFrame(frame));
+            try
+            {
+                output.Add(DecodeFrame(frame));
+            }
+            catch (InvalidOperationException)
+            {
+                // Skip poison frames like the Java binding: the C core
+                // already consumed the fragment, so only accounting is missing.
+                receivedErrors++;
+            }
         }
         return output;
     }

@@ -349,6 +349,9 @@ std::vector<Message> AeronTransport::poll(std::size_t max)
         Message message{};
         if (!decode_message(buffer, length, message))
         {
+            // Skip poison frames like the Java binding: the fragment is
+            // already consumed, so only accounting is missing.
+            ctx->stats->received_errors++;
             return;
         }
         ctx->out->push_back(message);

@@ -250,13 +250,15 @@ test("Aeron native adapter maps native errors and zero batches", () => {
     assert.equal(failingStats.sentCount, 0);
     assert.deepEqual(failingStats, {
       sentCount: 0, receivedCount: 0, offerBackPressure: 0, offerNotConnected: 0,
-      offerAdminAction: 0, offerClosed: 0, offerMaxPosition: 0, offerFailed: 0
+      offerAdminAction: 0, offerClosed: 0, offerMaxPosition: 0, offerFailed: 0,
+      receivedErrors: 0
     });
     const successStats = native.stats(handle);
     assert.equal(successStats.sentCount, 9);
     assert.deepEqual(successStats, {
       sentCount: 9, receivedCount: 0, offerBackPressure: 0, offerNotConnected: 0,
-      offerAdminAction: 0, offerClosed: 0, offerMaxPosition: 0, offerFailed: 0
+      offerAdminAction: 0, offerClosed: 0, offerMaxPosition: 0, offerFailed: 0,
+      receivedErrors: 0
     });
     native.close(handle);
   } finally {
@@ -405,4 +407,24 @@ test("Aeron native adapter propagates open errors", () => {
     if (previous === undefined) delete process.env.EPOCH_AERON_LIBRARY;
     else process.env.EPOCH_AERON_LIBRARY = previous;
   }
+});
+
+test("AeronTransport skips poison frames and counts errors", () => {
+  const native = new FakeNative();
+  const transport = new epoch.AeronTransport(
+    { channel: "aeron:ipc", streamId: 7, aeronDirectory: "" },
+    native
+  );
+  const good = epoch.encodeAeronFrame({
+    epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 3, schemaId: 1, qos: 0, payload: 99
+  });
+  const bad = Buffer.from(good);
+  bad.writeUInt8(2, 0);
+  native.frames.push(Buffer.from(bad), Buffer.from(bad), good);
+
+  assert.deepEqual(transport.poll(4).map((m) => m.payload), [99]);
+  const stats = transport.stats();
+  assert.equal(stats.receivedErrors, 2);
+  transport.close();
+  assert.equal(transport.stats().receivedErrors, 2);
 });

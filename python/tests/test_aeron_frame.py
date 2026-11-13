@@ -212,6 +212,21 @@ class AeronFrameTests(unittest.TestCase):
         transport.close()
         native.close(None)
 
+    def test_transport_skips_poison_frames(self) -> None:
+        native = FakeNative()
+        transport = AeronTransport(AeronConfig("aeron:ipc", 9, ""), native=native)
+        good = encode_aeron_frame(Message(1, 1, 1, 1, 1, 1, 99))
+        bad = b"\x02" + good[1:]
+        native.frames.append(bad)
+        native.frames.append(bad)
+        native.frames.append(good)
+        batch = transport.poll(4)
+        self.assertEqual([m.payload for m in batch], [99])
+        self.assertEqual(transport.stats().received_errors, 2)
+        transport.close()
+        self.assertEqual(transport.stats().received_errors, 2)
+
 
 if __name__ == "__main__":
+
     unittest.main()

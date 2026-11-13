@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import List, Optional
 
 import ctypes
@@ -37,6 +37,7 @@ class AeronStats:
     offer_closed: int
     offer_max_position: int
     offer_failed: int
+    received_errors: int = 0
 
 
 def encode_aeron_frame(message: Message) -> bytes:
@@ -200,6 +201,7 @@ class AeronTransport(Transport):
         self._native = native or _NativeAeron()
         self._handle = self._native.open(config)
         self._closed = False
+        self._received_errors = 0
 
     @property
     def config(self) -> AeronConfig:
@@ -207,8 +209,8 @@ class AeronTransport(Transport):
 
     def stats(self) -> AeronStats:
         if self._closed:
-            return AeronStats(0, 0, 0, 0, 0, 0, 0, 0)
-        return self._native.stats(self._handle)
+            return AeronStats(0, 0, 0, 0, 0, 0, 0, 0, self._received_errors)
+        return replace(self._native.stats(self._handle), received_errors=self._received_errors)
 
     def send(self, message: Message) -> None:
         if self._closed:
@@ -220,7 +222,15 @@ class AeronTransport(Transport):
         if self._closed:
             return []
         frames = self._native.poll(self._handle, max_items)
-        return [decode_aeron_frame(frame) for frame in frames]
+        out: List[Message] = []
+        for frame in frames:
+            try:
+                out.append(decode_aeron_frame(frame))
+            except ValueError:
+                # Skip poison frames like the Java binding: the C core already
+                # consumed the fragment, so only accounting is missing.
+                self._received_errors += 1
+        return out
 
     def close(self) -> None:
         if self._closed:
