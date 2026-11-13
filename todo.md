@@ -86,7 +86,7 @@
 
 ### 超大文件候选
 
-无 >1000 行文件（tracked 源码最大文件为 `java/src/test/java/io/epoch/VectorTestMain.java`，516 行）。
+无 >1000 行文件（tracked 源码最大文件为 `java/src/test/java/io/epoch/VectorTestMain.java`；2026-11-07 记录时 516 行，2026-11-14 刷新为 690 行，仍无 >1000 行文件）。
 
 ### 目录/分类问题
 
@@ -97,7 +97,7 @@
 ### 目标与结果
 
 - [x] 目标：把 codecov 总覆盖率提升到 ≥98%（只加测试、不改生产代码）。（已完成尝试并如实记录：24f7701 批实测 88.34%，未达 98%；后续批次（cf06c15/26c2abf/b7c03ab/9b75669/0ea5718/ff7e39d/6a4f40c）提升至 95.74%（1775/1854），仍未达 98%；两批未达原因均如实记录于本节与「覆盖率提升 2026-11-09」节）
-- [x] 实测：codecov 口径（各语言报告 line 加权聚合）从 baseline 73.69% 提升到 **88.34%**（2454/2778），未达 98%。（证据：24f7701 批本地六语言实测加权（口径同 2026-11-09 节复现方法）；该口径现已被后续批次更新为 1775/1854=95.74%，见「覆盖率提升 2026-11-09」节）
+- [x] 实测：codecov 口径（各语言报告 line 加权聚合）从 baseline 73.69% 提升到 **88.34%**（2454/2778），未达 98%。（证据：24f7701 批本地六语言实测加权（口径同 2026-11-09 节复现方法）；该口径现已被后续批次更新为 1775/1854=95.74%，见「覆盖率提升 2026-11-09」节）。（2026-11-14 注：以上分母为记录时 tracked 行数口径，源文件随后续批次增长（如 VectorTestMain 516→690 行），历史数值不回改；最新六语言实测见「覆盖率提升 2026-11-12」节）
 - [x] 结论：98% 无法仅靠加测试达成——剩余缺口全部来自生产代码结构限制（不可注入的 P/Invoke、真实 CGO/Aeron 边界、异常构造/重试循环），在「不改生产代码」约束下不可覆盖。（已由 2026-11-09 节实测确认：六语言聚合 1775/1854=95.74%，距 98% 差 42 行，缺口为 Go cgo 闭包（需真实 handle）、.NET AeronNative P/Invoke（需真实驱动）、C++ gcov 行归属噪声，均在不改生产行为+只用 stub/fake 下不可覆盖）
 
 ### 各语言最终覆盖率（line 口径）
@@ -246,13 +246,13 @@
 
 **P1-1（次修）：java 毒帧使 poll 永久失效**
 - 病灶：`AeronTransport.java:179`（原）poll 回调内 `AeronMessageCodec.decode` 遇版本不匹配抛 `IllegalArgumentException`，异常穿透 `subscription.poll` → 帧 position 不提交 → 下次 poll 重读同一帧再抛，永久失效。
-- 修法：handler 内 try/catch(IllegalArgumentException) → 跳过坏帧并计数（`stats.recordReceivedError()`，AeronStats 新增 `receivedErrorCount` AtomicLong + getter），不再让异常穿透（AeronTransport.java:175-186、:206-214、:233-236、:241-245）。
+- 修法：handler 内 try/catch(IllegalArgumentException) → 跳过坏帧并计数（`stats.recordReceivedError()`，AeronStats 新增 `receivedErrorCount` AtomicLong + getter），不再让异常穿透（2026-11-14 行号刷新：AeronTransport.java:203-206、:238、:267-268、:279-280）。
 - 回归测试：VectorTestMain（毒帧块，stream 45）——连续 2 个坏版本帧 → poll(4) 返回空且不抛；随后 1 个好帧 → poll 返回该帧；断言 `receivedErrorCount()==2`、`receivedCount()==1`（坏帧被消费而非永久重读）。
 - 验证：run-tests.sh exit 0、run-coverage.sh exit 0。commit 97dbe92。
 
 **P1-2（最大，跨 native+C++ 绑定）：就绪等待无超时**
 - 病灶：`native/src/epoch_aeron.c:70-83,108-121` 与 `cpp/src/aeron_transport.cpp:183-192,207-216`（原）`while(true)` 忙自旋 `sched_yield()`/`yield()` 等待 publication/subscription 就绪，无 deadline；driver 未就绪时构造永久挂死且烧满 CPU。
-- 修法：native C 配置新增 `ready_timeout_ms`（`epoch_aeron.h:14-26`；0→默认 10s、负→无限、正→显式），`epoch_aeron_init_publication/subscription` 增加 `CLOCK_MONOTONIC` deadline，超时置错误「publication/subscription not ready within timeout」并返回 -1（epoch_aeron.c:64-96、:118-176）；C++ 绑定 `AeronConfig` 增 `ready_timeout_ms`（aeron_transport.h:12-21）并用 `steady_clock` deadline 同样在超时抛 `std::runtime_error`（aeron_transport.cpp:60-89、:203-213、:237-247）；绑定结构同步：Python `_CConfig`/`AeronConfig`、Node koffi struct/`AeronConfig`、.NET `AeronConfigNative`/record 各加 `ready_timeout_ms` 透传（Go 由 cgo 自动对齐）；默认值 0 → 各绑定默认 10s 超时（此前为无限）。
+- 修法：native C 配置新增 `ready_timeout_ms`（`epoch_aeron.h:15-26`；0→默认 10s、负→无限、正→显式），`epoch_aeron_init_publication/subscription` 增加 `CLOCK_MONOTONIC` deadline，超时置错误「publication/subscription not ready within timeout」并返回 -1（epoch_aeron.c:64-90、:105-176）；C++ 绑定 `AeronConfig` 增 `ready_timeout_ms`（aeron_transport.h:12-21）并用 `steady_clock` deadline 同样在超时抛 `std::runtime_error`（aeron_transport.cpp:43-77、:222-236、:251-265）；绑定结构同步：Python `_CConfig`/`AeronConfig`、Node koffi struct/`AeronConfig`、.NET `AeronConfigNative`/record 各加 `ready_timeout_ms` 透传（Go 由 cgo 自动对齐）；默认值 0 → 各绑定默认 10s 超时（此前为无限）。
 - 回归测试：`cpp/tests/aeron_transport_test.cpp` 新增 `test_aeron_publication_ready_timeout`/`test_aeron_subscription_ready_timeout`（stub hook `async_*_poll` 恒返 0、`ready_timeout_ms=50`）——无修复时构造挂死（已实证：临时移除 deadline 检查后 ctest `epoch_cpp_aeron` 超 5s 被 timeout 杀死），有修复 0.24s 绿。`native/tests/epoch_aeron_c_test.c` 新增（`epoch_aeron_open` 空 channel → NULL+"invalid config"，即时 0.02s）挂入 `native/CMakeLists.txt` ctest 并经 `native/build.sh` 在 go/node/dotnet CI 运行。
 - 说明：native C poll 超时分支（stale cnc/驱动半死场景）已手工实证（stale driver 目录 + `ready_timeout_ms=100` → `handle=(nil) err=[publication not ready within timeout]`），但无自动化回归——无 driver 时 `aeron_init` 因 CnC 缺失快速失败（不进入 poll 循环），需 driver 才可到达；C 驱动子模块未检出、无 driver 的 open 各路径客户端自身固定 ~10s，不宜入 CI；该逻辑与 C++ 绑定同构，回归由上述 C++ stub 测试保障。
 - 验证：ctest cpp 3/3（0.21s）、native ctest 1/1（0.02s）、Go ok（10.0s，含真实 open 失败路径）、Python 20/20、Node 21/21、.NET 17/17。commit bf115b5。
@@ -285,9 +285,22 @@
 - [x] CI 7/7 全绿（755516f：build-cpp/java/dotnet/go/node/python + docs 全 success，2026-11-12）。
 - [x] 六语言本地测试全绿（沿用上批全量验证）。
 - [x] 三轮均单 commit 英文简短信息、无 AI 痕迹；无 tag、无 force push、未动版本发布。
-## Codex 深审发现（2026-11-12，luna profile 近5 commit 审核，0C/2M/3m，待修）
+## Codex 深审发现（2026-11-12，luna profile 近5 commit 审核，0C/2M/3m；2026-11-14 epoch-sweep 全部处置）
 
-- [ ] [M] Go Aeron 配置补 ReadyTimeout（go/aeron_transport.go:19、native/include/epoch_aeron.h:22）——cConfig 缺就绪超时字段
-- [ ] [M] 多语言 poll 毒帧处理对齐 Java 语义（cpp/src/aeron_transport.cpp:358、go/aeron_transport.go:181、node/src/index.ts:159、python）
-- [ ] [m] a2af505 混入测试拆分说明（cpp/tests/aeron_transport_test.cpp:797）——commit message 与内容不符
-- [ ] [m] todo.md:89/99/235/249 证据行号随代码更新（tracked 文件 516→603 行漂移）
+## 清尾批 2026-11-14（epoch-sweep）
+
+### 任务书适配
+- 指定任务书 `~/.hermes/cache/scratch/tasks/epoch-sweep.md` 不存在；同日 07:38 批量生成的 sweep 任务书（courier/luna/memex/spawn/falcon/gateway-fleet/alpha-minor）为同一模板仅仓名不同——按该模板对 epoch 执行：`git pull --rebase`（up to date）→ 处理 todo.md 全部未勾项（跳过 BLOCKED）→ 测试门禁全绿 → 单 commit+push → 勾选带证据。
+
+### 处置结果（4/4 未勾项全清，1 BLOCKED 保持）
+- [x] [M] Go ReadyTimeout → 5b677a2（见 Codex 深审节勾选证据）。
+- [x] [M] 多语言毒帧对齐 → 5c4f236（同上；cpp/go/node/python/dotnet 五语言 + 各语言回归测试）。
+- [x] [m] a2af505 说明 → 本批 todo 记录（同上节）。
+- [x] [m] 证据行号刷新 → 本批 todo 修改（同上节）。
+- [ ] BLOCKED 保持：Node bigint 精度（todo.md:24）——设计拍板仍缺，本轮如实不重试。
+- 门禁：六语言本地全绿（go test ok+vet、python 21/21、node 22/22、cpp ctest 3/3、dotnet 18/18、java run-tests exit 0）；两个代码 commit 均单主题英文短句、无 AI 痕迹、无 tag/force push。
+
+- [x] [M] Go Aeron 配置补 ReadyTimeout——已修：commit 5b677a2。`AeronConfig` 增 `ReadyTimeoutMs`（go/aeron_transport.go:25-28，注释标明 0=默认 10s/负=无限），cConfig 透传 `ready_timeout_ms`（go/aeron_transport.go:69，与 native/include/epoch_aeron.h:24 字段对齐，python/node/dotnet 此前均已透传，Go 是唯一缺口）。回归：`TestAeronTransportPassesReadyTimeout`（stub 捕获 open 收到的 config，断言 250 完整透传，go/aeron_transport_stub_test.go:239-256）。验证：go test ok（10.0s 含真实 open 失败路径）+ `go vet` 干净。
+- [x] [M] 多语言 poll 毒帧处理对齐 Java 语义——已修：commit 5c4f236。Java（97dbe92）为基准（跳过坏帧 + receivedErrorCount 计数），其余语言统一为「跳过 + received_errors 计数」：cpp（handler decode 失败计数，AeronStats 增 `received_errors`，aeron_transport.h:32；既有 skip 测试补 errors=1/received=1 断言）；go（`Poll` 由 panic 改为跳过+`ReceivedErrors` 本地计数、`Stats()` 合并返回，aeron_transport.go:178-198、:210-224——C core 在 Go 侧解码前已消费帧，panic 只会白丢整批）；node（poll try/catch 跳过 + `receivedErrors` 合并 stats，index.ts:156-172、:165-180）；python（ValueError→跳过 + `_received_errors`，stats 闭分支保留计数，aeron_transport.py:211-224）；dotnet（InvalidOperationException→跳过 + `ReceivedErrors`，AeronTransport.cs:55-77、:51-54）。回归：go/node/python/dotnet 各新增「2 坏+1 好→poll 返回好帧、errors=2、received=1」毒帧测试；go 旧 `TestAeronPollRejectsCorruptFrame`（断言 panic）与 dotnet 旧 `DecodeFrameRejectsShortAndUnsupportedFrames`（断言抛异常）按新语义更新——语义变更系任务条目本身要求，非绕过。验证：六语言本地全绿（go ok+vet、python 21/21、node 22/22、cpp ctest 3/3、dotnet 18/18、java exit 0）。
+- [x] [m] a2af505 混入测试拆分说明——已记录（本条勾选即为说明）：a2af505「chore: exclude test paths from codecov coverage」除 codecov.yml 外混入了 cpp 负超时回归测试（StubState `async_*_poll_never_ready` 标志 + `test_aeron_publication/subscription_ready_timeout` + `test_aeron_negative_timeout_waits_indefinitely`，即审计时点 cpp/tests/aeron_transport_test.cpp:797 附近）。混入内容属 P1-2 主题（bf115b5）且测试真实有效；历史已推送、按规不 force push 不改写；后续遵循单 commit 单主题。
+- [x] [m] todo.md:89/99/235/249 证据行号随代码更新——已刷新（2026-11-14）：:89 VectorTestMain 516→690 行（`wc -l` 实测）；P1-2 证据行号按当前源码刷新（epoch_aeron.h:15-26、epoch_aeron.c:64-90、:105-176、aeron_transport.cpp:43-77、:222-236、:251-265）；P1-1 证据行号刷新（AeronTransport.java:203-206、:238、:267-268、:279-280，现 303 行）；:99 为历史口径数值，加注不回改。
