@@ -50,10 +50,10 @@
 - `48`: payload (i64)
 
 ## Debug / 观测出口
-`stats()` 已暴露（Java `AeronTransport.stats()`、C++ `stats()`、native `epoch_aeron_stats`）：
+`stats()` 已暴露（Java `AeronTransport.stats()`、C++ `stats()`、Go `Stats()`、Node `stats()`、Python `stats()`、.NET `Stats`、native `epoch_aeron_stats`）：
 - 发送/接收计数（sent / received）
 - offer 失败细分：backpressure / not_connected / admin_action / closed / max_position / failed（Java 无独立 max_position 计数，归入 failed）
-- 接收解码错误计数：`receivedErrorCount`（Java）/ `received_errors`（C++/Go/Python）/ `receivedErrors`（Node/.NET）
+- 接收解码错误计数：`receivedErrorCount`（Java）/ `received_errors`（C++/Python）/ `ReceivedErrors`（Go/.NET）/ `receivedErrors`（Node）
 
 规划中（未实现）：Publication 位置、Subscription 进度、丢包计数、Archive 回放进度、Error Log。
 
@@ -70,9 +70,9 @@
 
 ## 交互流程（简版）
 ```
-Client -> Registry: 查询 actorId -> endpoint
 Client -> Aeron: Publication(channel, streamId)
 Server -> Aeron: Subscription(channel, streamId)
 ```
+> Registry（actorId → endpoint 寻址）为设计示意，当前实现无 Registry 组件；接入方直接由配置提供 `channel`/`streamId`。
 
 > 当前提供最小可用实现，后续补充生产化配置与部署脚手架。 

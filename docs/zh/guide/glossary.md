@@ -16,11 +16,11 @@
 | InMemoryTransport | InMemoryTransport | 进程内 FIFO 队列，用于直接消息交接；不按 Epoch 排序，也不持久化。 | `java/src/main/java/io/epoch/InMemoryTransport.java:8` |
 | AeronTransport | AeronTransport | 由 Publication/Subscription 支撑的 `Transport` 实现；各语言显式拥有或委托原生资源。 | `java/src/main/java/io/epoch/AeronTransport.java:17` |
 | AeronConfig | AeronConfig | 投递配置：channel、streamId、Aeron 目录、fragment limit 和 offer 重试上限；Java 增加嵌入式 driver 配置。 | `cpp/include/epoch/aeron_transport.h:12` |
-| AeronStats | AeronStats | 发送、接收和分类 offer 失败的投递计数。 | `native/include/epoch_aeron.h:24` |
-| Aeron Frame v1 | Aeron Frame v1 | 单条可移植消息的固定 56 字节小端表示。 | `docs/guide/transport-aeron.md:39` |
-| 原生网关 | Native gateway | 不透明 C 对象与五函数 ABI，为 Go、Node、.NET、Python 集中管理 Aeron C client 生命周期。 | `native/include/epoch_aeron.h:37` |
+| AeronStats | AeronStats | 发送、接收和分类 offer 失败的投递计数。 | `native/include/epoch_aeron.h:28` |
+| Aeron Frame v1 | Aeron Frame v1 | 单条可移植消息的固定 56 字节小端表示。 | `docs/guide/transport-aeron.md:41` |
+| 原生网关 | Native gateway | 不透明 C 对象与五函数 ABI，为 Go、Node、.NET、Python 集中管理 Aeron C client 生命周期。 | `native/include/epoch_aeron.h:41` |
 | Media Driver | Media Driver | 用于共享内存和网络 IO 的 Aeron 组件；Java 可嵌入式启动，原生网关则外部委托。 | `java/src/main/java/io/epoch/AeronTransport.java:68` |
 | 规范向量 | Canonical vector | 共享的 `test-vectors/epoch_vector_v1.txt` 输入与期望 Epoch 结果，用于比较各实现。 | `test-vectors/epoch_vector_v1.txt:1` |
-| Vector harness | Vector harness | 各语言可执行程序，解析规范文件并断言等价状态演进。 | `java/src/test/java/io/epoch/VectorTestMain.java:172` |
+| Vector harness | Vector harness | 各语言可执行程序，解析规范文件并断言等价状态演进。 | `java/src/test/java/io/epoch/VectorTestMain.java:487` |
 | 覆盖率生命周期 | Coverage lifecycle | 各语言插桩和报告步骤，把行为证据关联到源码。 | `.github/workflows/build-go.yml:36` |
 | 源码层 | Source layer | 依据所有权、调用方向、状态和生命周期归纳出的职责边界，不是目录名。 | `docs/en/guide/architecture.md:5` |

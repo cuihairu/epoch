@@ -34,14 +34,14 @@
   3. 无同步等待
   4. 状态只在 Epoch 边界对外可见
 - ActorId:
-  - 默认用 64-bit 数值标识，`sourceId == actorId`
+  - 默认用 64-bit 数值标识，`sourceId == actorId`（设计约定；当前实现未强制校验，engine 仅透传字段，见 `docs/guide/protocol.md:20`）
   - 规则可配置：通过 `ActorIdCodec` 定义 encode/decode
   - 默认布局：`region | server | processType | processIndex | actorIndex`
 
 #### 3. Channel
 - 提供消息传递接口
 - 消息在到达时只入队，不立即触发执行
-- 支持不同类型:
+- 支持不同类型（设计分类；当前实现未区分，六语言均为单一顺序队列，如 `cpp/include/epoch/transport.h:43`、`go/transport.go:11`）:
   - MPSC / SPSC / Broadcast / LatestValue
 - 支持 `qos` 优先级字段，高优先级消息优先处理
 - 配合 Epoch 确保顺序与确定性
@@ -67,7 +67,7 @@
 - 一致性验证:
   - 复用统一测试向量与 stateHash 规则
 - 关键边界字段（最小集合）:
-  - epoch、channelId、sourceId、sourceSeq、schemaId、payload
+  - epoch、channelId、sourceId、sourceSeq、schemaId、payload（与 `Message` 一致，另有 `qos` 字段，见 `docs/guide/protocol.md:10-17`）
 
 ---
 
