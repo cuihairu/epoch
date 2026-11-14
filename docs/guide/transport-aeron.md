@@ -25,6 +25,7 @@
 - `aeronDirectory`: driver 目录
 - `fragmentLimit`: 单次 poll 最大片段数（默认 64）
 - `offerMaxAttempts`: offer 重试上限（默认 10）
+- `readyTimeoutMs`: publication/subscription 就绪等待上限，绑定侧统一透传（0=默认 10s，负值=无限等待；Java 除外）
 - `idleStrategy`: 空转策略（Java，默认 BusySpin）
 - `embeddedDriver`: 是否启用 embedded driver（Java）
 - `dirDeleteOnStart/Shutdown`: embedded 模式是否清理目录（Java）
@@ -37,7 +38,7 @@
 - `archiveEnabled`: 是否启用回放
 
 ## 消息帧格式（v1）
-固定长度 56 bytes，偏移如下：
+固定长度 56 bytes，偏移如下（`poll` 解码失败时跳过该帧并计入 `receivedErrorCount`，不中断批次）：
 - `0`: version (u8)
 - `1`: qos (u8)
 - `2-7`: reserved
@@ -52,6 +53,7 @@
 `stats()` 已暴露（Java `AeronTransport.stats()`、C++ `stats()`、native `epoch_aeron_stats`）：
 - 发送/接收计数（sent / received）
 - offer 失败细分：backpressure / not_connected / admin_action / closed / max_position / failed（Java 无独立 max_position 计数，归入 failed）
+- 接收解码错误计数：`receivedErrorCount`（Java）/ `received_errors`（C++/Go/Python）/ `receivedErrors`（Node/.NET）
 
 规划中（未实现）：Publication 位置、Subscription 进度、丢包计数、Archive 回放进度、Error Log。
 
@@ -64,7 +66,7 @@
 ```
 ./native/build.sh
 ```
-默认输出在 `native/build`，可通过环境变量 `EPOCH_AERON_LIBRARY` 指定动态库路径。
+默认输出在 `native/build`（构建期无环境变量）。`EPOCH_AERON_LIBRARY` 是 Python/Node 绑定的**运行时**加载路径覆盖，见各语言页。
 
 ## 交互流程（简版）
 ```
