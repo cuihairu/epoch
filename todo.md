@@ -21,7 +21,7 @@
 
 ## 待办（P2，记 todo）
 - [x] 修复 C++ AeronTransport 构造器异常路径资源泄漏（context_/client_ 提前赋值使 catch 路径正确释放；新增 init/start 失败清理测试；ctest 3/3 绿）
-- [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）【BLOCKED：改 bigint 为破坏性 API 变更，需设计拍板；缺设计拍板（确认是否接受破坏性 API 变更）→ 本轮跳过，待拍板后处理；2026-11-04 复核：源码仍为 number（node/src/index.ts:88-112），docs/review/2026-11-02-code-review-opencode.md:49、:106 确认需 bigint 破坏性变更，设计拍板仍缺→保留 BLOCKED 不重试；2026-11-06 复核：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用，设计拍板仍缺→保留 BLOCKED 不重试；本轮复核（2026-11-06）：源码与上一致、全仓仍无设计拍板记录（rg 拍板/bigint 仅注记无决策）→缺设计拍板，保持未勾 BLOCKED 不重试；本轮复核（2026-11-09）：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用、全仓仍无设计拍板记录→缺设计拍板，保持未勾 BLOCKED 不重试】
+- [ ] Node.js Message 64-bit 字段精度丢失，改 bigint 需设计拍板（node/src/index.ts:88-112）【BLOCKED：改 bigint 为破坏性 API 变更，需设计拍板；缺设计拍板（确认是否接受破坏性 API 变更）→ 本轮跳过，待拍板后处理；2026-11-04 复核：源码仍为 number（node/src/index.ts:88-112），docs/review/2026-11-02-code-review-opencode.md:49、:106 确认需 bigint 破坏性变更，设计拍板仍缺→保留 BLOCKED 不重试；2026-11-06 复核：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用，设计拍板仍缺→保留 BLOCKED 不重试；本轮复核（2026-11-06）：源码与上一致、全仓仍无设计拍板记录（rg 拍板/bigint 仅注记无决策）→缺设计拍板，保持未勾 BLOCKED 不重试；本轮复核（2026-11-09）：node/src/index.ts:4-12、:88-93、:105-112 仍为 number/BigInt(number)/Number(bigint)，docs/review/2026-11-02-code-review-opencode.md:49、:106 结论仍适用、全仓仍无设计拍板记录→缺设计拍板，保持未勾 BLOCKED 不重试；2026-11-15 复核（continue-r2）：node/src/index.ts:11 仍为 `payload: number`、:94 `BigInt(message.payload)`、:112 `Number(buffer.readBigInt64LE(48))`，全仓仍无设计拍板记录→缺设计拍板，保持 BLOCKED 不重试】
 - [x] Java AeronTransport 补充关闭状态守卫（volatile closed：send 后抛异常、poll 后空、close 幂等；run-tests.sh 绿）
 
 ## 审核发现
@@ -305,4 +305,12 @@
 - [x] [m] a2af505 混入测试拆分说明——已记录（本条勾选即为说明）：a2af505「chore: exclude test paths from codecov coverage」除 codecov.yml 外混入了 cpp 负超时回归测试（StubState `async_*_poll_never_ready` 标志 + `test_aeron_publication/subscription_ready_timeout` + `test_aeron_negative_timeout_waits_indefinitely`，即审计时点 cpp/tests/aeron_transport_test.cpp:797 附近）。混入内容属 P1-2 主题（bf115b5）且测试真实有效；历史已推送、按规不 force push 不改写；后续遵循单 commit 单主题。
 - [x] [m] todo.md:89/99/235/249 证据行号随代码更新——已刷新（2026-11-14）：:89 VectorTestMain 516→690 行（`wc -l` 实测）；P1-2 证据行号按当前源码刷新（epoch_aeron.h:15-26、epoch_aeron.c:64-90、:105-176、aeron_transport.cpp:43-77、:222-236、:251-265）；P1-1 证据行号刷新（AeronTransport.java:203-206、:238、:267-268、:279-280，现 303 行）；:99 为历史口径数值，加注不回改。
 ## 双语与自动语言切换（fleet-docs-audit-G2，2026-11-14）
-- [ ] P2 文档站双语化：当前 VuePress 单语（lang zh-CN、无 locales、无 rootLocale/navigator.language 探测），站内无手动语言切换入口，README 仅中文；docs/en/guide 与 docs/zh/guide 各有 architecture/glossary 孤儿页未接入导航。G2 结论=「无双语自动切换，站内亦无手动切换入口」。受规基线=手动切换+显式链接（成对 X.md/X.zh.md 或 locale 路由）；自动识别为增强项。需拍板：是否上英文版+locale 路由（/=en、/zh/=zh）+自动探测，以及孤儿 en/zh 页接线或删除（审计记录：docs/审计-文档一致性.md G2 轮）。
+- [ ] P2【BLOCKED：缺用户拍板——双语范围与形态选型】文档站双语化：当前 VuePress 单语（lang zh-CN、无 locales、无 rootLocale/navigator.language 探测），站内无手动语言切换入口，README 仅中文；docs/en/guide 与 docs/zh/guide 各有 architecture/glossary 孤儿页未接入导航。G2 结论=「无双语自动切换，站内亦无手动切换入口」。受规基线=手动切换+显式链接（成对 X.md/X.zh.md 或 locale 路由）；自动识别为增强项。需拍板：是否上英文版+locale 路由（/=en、/zh/=zh）+自动探测，以及孤儿 en/zh 页接线或删除（审计记录：docs/审计-文档一致性.md G2 轮）。
+
+## 续做巡检 2026-11-15（continue-r2）
+- 树状态：干净（仅 `cpp/build/`、`python/.coverage` 两个未跟踪构建产物，不夹带）；`git pull --rebase` 无更新；CI 7/7 绿（956e36a、a213f7c 两轮 G2 审计 commit 均已推送并全绿）。
+- todo 92/95 已勾，剩余 3 条未勾逐条判定：
+  - [BLOCKED] todo.md:24 Node.js 64-bit 精度——2026-11-15 复核源码仍为 `payload: number`（node/src/index.ts:11）、`BigInt(message.payload)`（:94）、`Number(buffer.readBigInt64LE(48))`（:112），全仓无设计拍板记录→缺设计拍板，保持 BLOCKED 不重试。
+  - [记录行] todo.md:300 系 :24 的状态记录（非工作项），随 :24 保持未勾。
+  - [BLOCKED] todo.md:308 文档站双语化——缺用户拍板（双语范围与形态选型：是否上英文版+locale 路由+自动探测、孤儿 en/zh 页接线或删除、全舰队形态统一），本轮只标注缺项不实现。
+- 本轮可执行项 0，故无新增修复 commit；仅本巡检标注 commit。
