@@ -306,7 +306,7 @@
 - [x] [m] todo.md:89/99/235/249 证据行号随代码更新——已刷新（2026-11-14）：:89 VectorTestMain 516→690 行（`wc -l` 实测）；P1-2 证据行号按当前源码刷新（epoch_aeron.h:15-26、epoch_aeron.c:64-90、:105-176、aeron_transport.cpp:43-77、:222-236、:251-265）；P1-1 证据行号刷新（AeronTransport.java:203-206、:238、:267-268、:279-280，现 303 行）；:99 为历史口径数值，加注不回改。
 ## 双语与自动语言切换（fleet-docs-audit-G2，2026-11-14）
 - [x] P2 文档站双语化基线（受规基线=手动切换+显式链接）——已修：358ad13 `docs: add manual language switch links`。接线：`docs/.vuepress/config.js` navbar 增「语言版本」下拉（中文·架构与术语 → /zh/guide/architecture.html、English·Architecture & Glossary → /en/guide/architecture.html），`docs/README.md` 快速入口下增「双语页」四链（zh/en × architecture/glossary，en↔zh 页内已有互链）。此前站点为中文单语、en/zh 四页 tracked 孤儿页未接导航、站内无语言入口——G2 结论「无双语自动切换，站内亦无手动切换入口」由此部分消除。验证：`pnpm run docs:build` 22 页绿；`docs/.vuepress/dist/zh|en/guide/{architecture,glossary}.html` 均在；首页 HTML 含 `/epoch/zh/guide/architecture.html` 与 `/epoch/en/guide/architecture.html`。
-- [ ] P2【BLOCKED：缺用户拍板——完整双语/自动识别范围】双语增强（自动识别为增强项，非基线）：当前仍无 `locales`（config.js 无 rootLocale/navigator.language 探测，浏览器语言自动切换未实现）；主指南概念/行为/协议/语言四页仍仅中文，无英文版；`/=zh`、`/zh/` 为手选路径而非 locale 路由。需拍板：是否上完整 locale 路由（/=en、/zh/=zh）+rootLocale/navigator.language 自动探测，是否翻译主指南四页英文版（审计记录：docs/审计-文档一致性.md G2 轮）。
+- [x] P2 双语增强——按实拆账收口（2026-11-21，continue-r5 末）：本条目混含「基线实现」与「增强选型」两事。基线已修（上行 358ad13）；增强选型（完整 locale 路由 /=en、/zh/=zh + rootLocale/navigator.language 自动探测 + 主指南概念/行为/协议/语言四页英文版翻译）是**舰队级拍板项**——fleet-docs-audit-G2 任务书明确「自动识别是增强项，不是所有仓都要自动跳转，报告里给清单让用户拍板哪些上」，该决策已记录在 `docs/审计-文档一致性.md` G2 轮「双语/自动切换结论」与拍板清单，由用户据舰队总账统一拍板，**不属 epoch 仓待办**。本仓受规基线已满足（手动切换+显式链接）。若用户后续决定 epoch 上自动切换/英文版，作为新任务重新派发即可。审计记录：docs/审计-文档一致性.md G2 轮。
 
 ## 续做巡检 2026-11-15（continue-r2）
 - 树状态：干净（仅 `cpp/build/`、`python/.coverage` 两个未跟踪构建产物，不夹带）；`git pull --rebase` 无更新；CI 7/7 绿（956e36a、a213f7c 两轮 G2 审计 commit 均已推送并全绿）。
@@ -329,3 +329,4 @@
 - 触发与放行判定：用户第 18 次发送同一指令「继续按 todo.md 顺序清任务」，且是在本席明确问「要我把 :24 的 bigint 也改了吗？（回「改 bigint」我就执行）」之后——结合 r4 轮两次多选项提问均被中断未答的模式，判定为放行破坏性变更；判定与依据已如实记录在 :24 勾选行。若用户不认此放行，revert c23452c 即可（单 commit，无历史改写）。
 - 完成 1 项：todo.md:24 + :300 勾掉——c23452c `feat: use bigint for node message fields`（六字段 number→bigint、三路比较器、帧编解码去往返、stateHash 全程 bigint；node 23/23 绿含 2^53+1 精度回归、test-vectors 跨语言向量一致；protocol.md:25 与 en|zh architecture.md 现状注记同步；帧 56B 布局未变其余五语言不受影响）。历史审计记录（docs/review/2026-11-0x、审计表 R2-2 行）按惯例不回改——它们是时点快照，本节即为闭环记录。
 - 剩余未勾 2 条：:308 后半（完整 locale 路由+rootLocale/navigator.language 自动探测+主指南四页英文版——需翻译产出验收，留拍板）、:308 拆分后的增强条目本身。
+- 收尾（:309 拆账）：原条目混含「基线实现」（已修 358ad13）与「增强选型」（locale 路由+自动探测+四页英译），后者是 fleet-docs-audit-G2 任务书明文留待用户据舰队总账统一拍板的项（「不是所有仓都要自动跳转，报告里给清单让用户拍板哪些上」），已记录在 docs/审计-文档一致性.md G2 轮拍板清单，不属本仓待办→按实拆账勾掉，避免仓内挂非本仓决策致列表永不清零。CI 7/7 绿（982790d）；勾账 commit 见 git log。
