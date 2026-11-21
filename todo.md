@@ -314,3 +314,7 @@
   - [记录行] todo.md:300 系 :24 的状态记录（非工作项），随 :24 保持未勾。
   - [BLOCKED] todo.md:308 文档站双语化——缺用户拍板（双语范围与形态选型：是否上英文版+locale 路由+自动探测、孤儿 en/zh 页接线或删除、全舰队形态统一），本轮只标注缺项不实现。
 - 本轮可执行项 0，故无新增修复 commit；仅本巡检标注 commit。
+
+## 续做巡检 2026-11-21（continue-r3）
+- 树状态：`git pull --rebase` 无更新（仓自 62d85eb 无新提交）；todo 仍 92/95 已勾，未勾 3 条全部 BLOCKED（:24 bigint 缺设计拍板、:300 系 :24 记录行、:308 双语化缺用户范围拍板），本轮逐项复核源码前提仍成立、全仓无拍板记录→保持 BLOCKED 不重试。
+- 本轮完成 1 项（非 todo 清单内、属仓卫生）：`cpp/build/` 与 `python/.coverage` 两个同类构建/覆盖率产物未被 `.gitignore` 覆盖（`node/coverage/`、`go/coverage.out`、`cpp/coverage.xml`、`python/coverage.xml` 均已忽略），导致每轮 `git status` 悬挂未跟踪噪音。补 `.gitignore:74 cpp/build/`、`.gitignore:97 python/.coverage`——9052e99。验证：`git check-ignore -v` 命中两行、status 仅剩本次改动、docs 门禁 22 页绿；CI 7/7 绿（9052e99）。未删除磁盘产物、未夹带未跟踪文件。
