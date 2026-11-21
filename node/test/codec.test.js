@@ -20,11 +20,11 @@ test("actorId codec rejects out-of-range parts", () => {
 
 test("processMessages breaks sourceId and sourceSeq ties", () => {
   const messages = [
-    { epoch: 3, channelId: 1, qos: 2, sourceId: 9, sourceSeq: 2, payload: 20 },
-    { epoch: 3, channelId: 1, qos: 2, sourceId: 9, sourceSeq: 1, payload: 10 },
+    { epoch: 3n, channelId: 1n, qos: 2, sourceId: 9n, sourceSeq: 2n, payload: 20n },
+    { epoch: 3n, channelId: 1n, qos: 2, sourceId: 9n, sourceSeq: 1n, payload: 10n },
   ];
   const results = epoch.processMessages(messages);
   assert.equal(results.length, 1);
-  assert.equal(results[0].state, 30);
+  assert.equal(results[0].state, 30n);
   assert.match(results[0].hash, /^[0-9a-f]{16}$/);
 });

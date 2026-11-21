@@ -1,14 +1,16 @@
 import { decodeActorId, defaultActorIdCodec, encodeActorId } from "./actor-id";
 import { AeronNative, AeronStats, loadAeronNative } from "./aeron-native";
 
+// All 64-bit integer fields are bigint: number silently loses precision
+// above 2^53 and would break the cross-language stateHash contract.
 export type Message = {
-  epoch: number;
-  channelId: number;
-  sourceId: number;
-  sourceSeq: number;
-  schemaId: number;
+  epoch: bigint;
+  channelId: bigint;
+  sourceId: bigint;
+  sourceSeq: bigint;
+  schemaId: bigint;
   qos?: number;
-  payload: number;
+  payload: bigint;
 };
 
 export type AeronConfig = {
@@ -40,18 +42,18 @@ export function fnv1a64Hex(input: string): string {
 
 export function processMessages(messages: Message[]) {
   messages.sort((a, b) => {
-    if (a.epoch !== b.epoch) return a.epoch - b.epoch;
-    if (a.channelId !== b.channelId) return a.channelId - b.channelId;
+    if (a.epoch !== b.epoch) return a.epoch < b.epoch ? -1 : 1;
+    if (a.channelId !== b.channelId) return a.channelId < b.channelId ? -1 : 1;
     const qosA = a.qos ?? 0;
     const qosB = b.qos ?? 0;
     if (qosA !== qosB) return qosB - qosA;
-    if (a.sourceId !== b.sourceId) return a.sourceId - b.sourceId;
-    return a.sourceSeq - b.sourceSeq;
+    if (a.sourceId !== b.sourceId) return a.sourceId < b.sourceId ? -1 : 1;
+    return a.sourceSeq < b.sourceSeq ? -1 : 1;
   });
 
-  const results: { epoch: number; state: number; hash: string }[] = [];
-  let state = 0;
-  let currentEpoch: number | null = null;
+  const results: { epoch: bigint; state: bigint; hash: string }[] = [];
+  let state = 0n;
+  let currentEpoch: bigint | null = null;
 
   for (const message of messages) {
     if (currentEpoch === null) {
@@ -86,12 +88,12 @@ export function encodeAeronFrame(message: Message) {
   const buffer = Buffer.alloc(AERON_FRAME_LENGTH);
   buffer.writeUInt8(AERON_FRAME_VERSION, 0);
   buffer.writeUInt8(message.qos ?? 0, 1);
-  buffer.writeBigInt64LE(BigInt(message.epoch), 8);
-  buffer.writeBigInt64LE(BigInt(message.channelId), 16);
-  buffer.writeBigInt64LE(BigInt(message.sourceId), 24);
-  buffer.writeBigInt64LE(BigInt(message.sourceSeq), 32);
-  buffer.writeBigInt64LE(BigInt(message.schemaId), 40);
-  buffer.writeBigInt64LE(BigInt(message.payload), 48);
+  buffer.writeBigInt64LE(message.epoch, 8);
+  buffer.writeBigInt64LE(message.channelId, 16);
+  buffer.writeBigInt64LE(message.sourceId, 24);
+  buffer.writeBigInt64LE(message.sourceSeq, 32);
+  buffer.writeBigInt64LE(message.schemaId, 40);
+  buffer.writeBigInt64LE(message.payload, 48);
   return buffer;
 }
 
@@ -103,13 +105,13 @@ export function decodeAeronFrame(buffer: Buffer): Message {
     throw new Error("Unsupported Aeron frame version");
   }
   return {
-    epoch: Number(buffer.readBigInt64LE(8)),
-    channelId: Number(buffer.readBigInt64LE(16)),
-    sourceId: Number(buffer.readBigInt64LE(24)),
-    sourceSeq: Number(buffer.readBigInt64LE(32)),
-    schemaId: Number(buffer.readBigInt64LE(40)),
+    epoch: buffer.readBigInt64LE(8),
+    channelId: buffer.readBigInt64LE(16),
+    sourceId: buffer.readBigInt64LE(24),
+    sourceSeq: buffer.readBigInt64LE(32),
+    schemaId: buffer.readBigInt64LE(40),
     qos: buffer.readUInt8(1),
-    payload: Number(buffer.readBigInt64LE(48))
+    payload: buffer.readBigInt64LE(48)
   };
 }
 

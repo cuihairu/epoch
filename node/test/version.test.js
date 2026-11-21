@@ -19,20 +19,20 @@ test("vector matches expected", () => {
     const parts = trimmed.split(",");
     if (parts[0] === "M" && (parts.length === 7 || parts.length === 8)) {
       const qos = parts.length === 8 ? Number(parts[6]) : 0;
-      const payload = parts.length === 8 ? Number(parts[7]) : Number(parts[6]);
+      const payload = parts.length === 8 ? BigInt(parts[7]) : BigInt(parts[6]);
       messages.push({
-        epoch: Number(parts[1]),
-        channelId: Number(parts[2]),
-        sourceId: Number(parts[3]),
-        sourceSeq: Number(parts[4]),
-        schemaId: Number(parts[5]),
+        epoch: BigInt(parts[1]),
+        channelId: BigInt(parts[2]),
+        sourceId: BigInt(parts[3]),
+        sourceSeq: BigInt(parts[4]),
+        schemaId: BigInt(parts[5]),
         qos,
         payload
       });
     } else if (parts[0] === "E" && parts.length === 4) {
       expected.push({
-        epoch: Number(parts[1]),
-        state: Number(parts[2]),
+        epoch: BigInt(parts[1]),
+        state: BigInt(parts[2]),
         hash: parts[3]
       });
     }
@@ -62,43 +62,55 @@ test("processMessages handles empty input", () => {
 
 test("processMessages orders epochs and carries state", () => {
   const messages = [
-    { epoch: 2, channelId: 2, sourceId: 1, sourceSeq: 2, schemaId: 100, qos: 0, payload: 5 },
-    { epoch: 1, channelId: 1, sourceId: 2, sourceSeq: 1, schemaId: 100, qos: 0, payload: 2 },
-    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 2, schemaId: 100, qos: 0, payload: -1 },
-    { epoch: 3, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 100, qos: 0, payload: 4 }
+    { epoch: 2n, channelId: 2n, sourceId: 1n, sourceSeq: 2n, schemaId: 100n, qos: 0, payload: 5n },
+    { epoch: 1n, channelId: 1n, sourceId: 2n, sourceSeq: 1n, schemaId: 100n, qos: 0, payload: 2n },
+    { epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 2n, schemaId: 100n, qos: 0, payload: -1n },
+    { epoch: 3n, channelId: 1n, sourceId: 1n, sourceSeq: 1n, schemaId: 100n, qos: 0, payload: 4n }
   ];
 
   const results = epoch.processMessages(messages);
   assert.deepEqual(results, [
-    { epoch: 1, state: 1, hash: "c3c43ef01be7b74f" },
-    { epoch: 2, state: 6, hash: "c3c43bf01be7b236" },
-    { epoch: 3, state: 10, hash: "8e2e70ff6abccccd" }
+    { epoch: 1n, state: 1n, hash: "c3c43ef01be7b74f" },
+    { epoch: 2n, state: 6n, hash: "c3c43bf01be7b236" },
+    { epoch: 3n, state: 10n, hash: "8e2e70ff6abccccd" }
   ]);
 });
 
 test("processMessages orders by qos descending within same epoch and channel", () => {
   const messages = [
-    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 100, qos: 1, payload: 10 },
-    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 2, schemaId: 100, qos: 5, payload: 20 },
-    { epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 3, schemaId: 100, qos: 3, payload: 30 }
+    { epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 1n, schemaId: 100n, qos: 1, payload: 10n },
+    { epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 2n, schemaId: 100n, qos: 5, payload: 20n },
+    { epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 3n, schemaId: 100n, qos: 3, payload: 30n }
   ];
 
   const results = epoch.processMessages(messages);
   assert.equal(results.length, 1);
-  assert.equal(results[0].epoch, 1);
-  assert.equal(results[0].state, 60);
+  assert.equal(results[0].epoch, 1n);
+  assert.equal(results[0].state, 60n);
   assert.equal(results[0].hash, epoch.fnv1a64Hex("state:60"));
+});
+
+test("processMessages keeps full 64-bit precision", () => {
+  // 2^53 + 1 is not representable as a number: the old number-typed payload
+  // silently rounded it and broke the cross-language stateHash contract.
+  const big = 9007199254740993n;
+  const messages = [
+    { epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 1n, schemaId: 1n, qos: 0, payload: big }
+  ];
+  const results = epoch.processMessages(messages);
+  assert.equal(results[0].state, big);
+  assert.equal(results[0].hash, epoch.fnv1a64Hex(`state:${big}`));
 });
 
 test("InMemoryTransport polls and closes", () => {
   const transport = new epoch.InMemoryTransport();
-  transport.send({ payload: 1 });
-  transport.send({ payload: 2 });
-  transport.send({ payload: 3 });
+  transport.send({ payload: 1n });
+  transport.send({ payload: 2n });
+  transport.send({ payload: 3n });
 
   assert.deepEqual(transport.poll(0), []);
-  assert.deepEqual(transport.poll(2), [{ payload: 1 }, { payload: 2 }]);
-  assert.deepEqual(transport.poll(10), [{ payload: 3 }]);
+  assert.deepEqual(transport.poll(2), [{ payload: 1n }, { payload: 2n }]);
+  assert.deepEqual(transport.poll(10), [{ payload: 3n }]);
 
   transport.close();
   assert.deepEqual(transport.poll(1), []);

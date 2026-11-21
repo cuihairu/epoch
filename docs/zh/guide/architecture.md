@@ -17,7 +17,7 @@
 
 各运行时暴露七个固定 `Message` 字段：C++ 在 `cpp/include/epoch/engine.h:9`，Java 在 `java/src/main/java/io/epoch/Engine.java:14`，.NET 在 `dotnet/Engine.cs:5`，Go 在 `go/epoch.go:10`，Node 在 `node/src/index.ts:4`，Python 在 `python/epoch/engine.py:11`。`ActorIdParts` 与 codec 扩展点分别由 `cpp/include/epoch/actor_id.h:7`、`cpp/include/epoch/actor_id.h:15`，`java/src/main/java/io/epoch/ActorId.java:7`、`java/src/main/java/io/epoch/ActorId.java:10`，`dotnet/ActorId.cs:3`、`dotnet/ActorId.cs:21`，`go/actor_id.go:5`、`go/actor_id.go:14`，`node/src/actor-id.ts:1`、`node/src/actor-id.ts:9`，以及 `python/epoch/actor_id.py:11`、`python/epoch/actor_id.py:20` 表示。所有默认 codec 都执行相同的 10/12/6/10/26 位拆分，例如 Java 在 `java/src/main/java/io/epoch/ActorId.java:29`，Node 在 `node/src/actor-id.ts:15`。
 
-仓库没有独立的机器可读 schema 文件。跨语言契约由 `docs/guide/protocol.md:10` 的文字规则加上各语言具体定义和测试组成。Node 有意让 `Message` 使用 `number`（`node/src/index.ts:4`），而 ActorId codec 使用 `BigInt`（`node/src/actor-id.ts:11`）；因此精度边界是 L1 API 约束，`docs/guide/protocol.md:25` 已记录该现状。
+仓库没有独立的机器可读 schema 文件。跨语言契约由 `docs/guide/protocol.md:10` 的文字规则加上各语言具体定义和测试组成。Node 的 `Message` 64-bit 字段类型为 `BigInt`（`node/src/index.ts:4`），ActorId codec 同样使用 `BigInt`（`node/src/actor-id.ts:11`）；此前的 `number` 字段超 2^53 会静默丢精度，已于 2026-11-21 迁移，`docs/guide/protocol.md:25` 已记录。
 
 ## L2 — 确定性 Epoch 处理
 
@@ -54,7 +54,7 @@ ABI schema 正是 `native/include/epoch_aeron.h:14` 的 `epoch_aeron_config_t`�
 ## 拆分理由
 
 1. **可移植语义与内存布局分离。** 同一排序和折叠算法独立存在于 Java（`java/src/main/java/io/epoch/Engine.java:56`）、.NET（`dotnet/Engine.cs:58`）、Go（`go/epoch.go:36`）、Node（`node/src/index.ts:41`）和 Python（`python/epoch/engine.py:37`）；共享向量可以在不强迫统一运行时 ABI 的情况下发现分叉。
-2. **身份解析独立，因为它可替换且对精度敏感。** 各语言定义 codec 接口和默认实现：C++ 在 `cpp/include/epoch/actor_id.h:15`，Java 在 `java/src/main/java/io/epoch/ActorId.java:10`，.NET 在 `dotnet/ActorId.cs:21`，Go 在 `go/actor_id.go:14`，Node 在 `node/src/actor-id.ts:9`，Python 在 `python/epoch/actor_id.py:20`；Node 还把 `BigInt` codec 与 `number` message API 隔离（`node/src/actor-id.ts:11`、`node/src/index.ts:4`）。
+2. **身份解析独立，因为它可替换且对精度敏感。** 各语言定义 codec 接口和默认实现：C++ 在 `cpp/include/epoch/actor_id.h:15`，Java 在 `java/src/main/java/io/epoch/ActorId.java:10`，.NET 在 `dotnet/ActorId.cs:21`，Go 在 `go/actor_id.go:14`，Node 在 `node/src/actor-id.ts:9`，Python 在 `python/epoch/actor_id.py:20`；Node 还把 `BigInt` codec 与 bigint message API 隔离（`node/src/actor-id.ts:11`、`node/src/index.ts:4`）。
 3. **传输是显式接缝，确定性处理不依赖媒体状态。** C++ 的 `Transport` 头文件只引入 `epoch/engine.h`（`cpp/include/epoch/transport.h:3`）；Python 的 `Transport` 只引入 `Message`（`python/epoch/transport.py:6`）；Aeron 适配器实现同样三个方法，但不向上暴露 Publication/Subscription 类型。
 4. **本地队列和网络适配器的所有权与关闭语义不同。** 内存存储只是进程内 FIFO（`java/src/main/java/io/epoch/InMemoryTransport.java:9`）；Aeron 要关闭 client 拥有的 publication、subscription、client 和 driver 资源（`java/src/main/java/io/epoch/AeronTransport.java:50`）。一个通用假抽象会掩盖资源和失败行为。
 5. **Aeron 适配器在所有权边界处有意分叉。** C++ 直接拥有原生指针（`cpp/include/epoch/aeron_transport.h:56`），Java 拥有嵌入式 driver（`java/src/main/java/io/epoch/AeronTransport.java:68`），Go/Node/.NET/Python 把不透明状态委托给 `epoch_aeron`（`native/include/epoch_aeron.h:12`）。这样避免把 C client 生命周期复制进另外四个托管运行时。

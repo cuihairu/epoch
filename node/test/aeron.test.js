@@ -59,13 +59,13 @@ class ErrorNative extends FakeNative {
 
 test("Aeron frame round trip", () => {
   const message = {
-    epoch: 1,
-    channelId: 2,
-    sourceId: 3,
-    sourceSeq: 4,
-    schemaId: 5,
+    epoch: 1n,
+    channelId: 2n,
+    sourceId: 3n,
+    sourceSeq: 4n,
+    schemaId: 5n,
     qos: 6,
-    payload: -7
+    payload: -7n
   };
   const frame = epoch.encodeAeronFrame(message);
   const decoded = epoch.decodeAeronFrame(frame);
@@ -78,7 +78,7 @@ test("Aeron frame rejects short buffer", () => {
 
 test("Aeron frame rejects unsupported version", () => {
   const frame = epoch.encodeAeronFrame({
-    epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 1, qos: 1, payload: 1
+    epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 1n, schemaId: 1n, qos: 1, payload: 1n
   });
   frame.writeUInt8(2, 0);
   assert.throws(() => epoch.decodeAeronFrame(frame), /Unsupported/);
@@ -89,11 +89,11 @@ test("AeronTransport uses native adapter", () => {
     { channel: "aeron:ipc", streamId: 1, aeronDirectory: "" },
     new FakeNative()
   );
-  transport.send({ epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 1, qos: 0, payload: 9 });
-  transport.send({ epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 2, schemaId: 1, qos: 0, payload: 10 });
+  transport.send({ epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 1n, schemaId: 1n, qos: 0, payload: 9n });
+  transport.send({ epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 2n, schemaId: 1n, qos: 0, payload: 10n });
 
-  assert.deepEqual(transport.poll(1).map((m) => m.payload), [9]);
-  assert.deepEqual(transport.poll(5).map((m) => m.payload), [10]);
+  assert.deepEqual(transport.poll(1).map((m) => m.payload), [9n]);
+  assert.deepEqual(transport.poll(5).map((m) => m.payload), [10n]);
   transport.close();
   assert.deepEqual(transport.poll(1), []);
 });
@@ -105,13 +105,13 @@ test("AeronTransport exposes config and rejects operations after close", () => {
   assert.equal(transport.config, config);
   assert.equal(transport.stats().sentCount, 1);
   assert.throws(() => transport.send({
-    epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 1, qos: 1, payload: 1
+    epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 1n, schemaId: 1n, qos: 1, payload: 1n
   }), /send failed/);
   assert.throws(() => transport.poll(1), /poll failed/);
   transport.close();
   transport.close();
   assert.throws(() => transport.send({
-    epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 1, qos: 1, payload: 1
+    epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 1n, schemaId: 1n, qos: 1, payload: 1n
   }), /closed/);
   assert.deepEqual(transport.poll(1), []);
   assert.equal(transport.stats().sentCount, 0);
@@ -341,7 +341,7 @@ test("Aeron native adapter falls back to library name when no local build", () =
 
 test("Aeron native adapter error buffer handles unsupported version", () => {
   const frame = epoch.encodeAeronFrame({
-    epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 1, schemaId: 1, qos: 1, payload: 1
+    epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 1n, schemaId: 1n, qos: 1, payload: 1n
   });
   frame[0] = 2;
   const fakeKoffi = {
@@ -416,13 +416,13 @@ test("AeronTransport skips poison frames and counts errors", () => {
     native
   );
   const good = epoch.encodeAeronFrame({
-    epoch: 1, channelId: 1, sourceId: 1, sourceSeq: 3, schemaId: 1, qos: 0, payload: 99
+    epoch: 1n, channelId: 1n, sourceId: 1n, sourceSeq: 3n, schemaId: 1n, qos: 0, payload: 99n
   });
   const bad = Buffer.from(good);
   bad.writeUInt8(2, 0);
   native.frames.push(Buffer.from(bad), Buffer.from(bad), good);
 
-  assert.deepEqual(transport.poll(4).map((m) => m.payload), [99]);
+  assert.deepEqual(transport.poll(4).map((m) => m.payload), [99n]);
   const stats = transport.stats();
   assert.equal(stats.receivedErrors, 2);
   transport.close();
