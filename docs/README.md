@@ -10,3 +10,7 @@ Epoch 是基于 Aeron 的高性能 Actor / Channel Runtime，面向游戏与金�
 - 协议与传输：`/guide/protocol.html`
 - 语言实现：`/guide/languages.html`
 - 设计文档（完整）：`/guide/epoch-actor-design.html`
+
+## 双语页
+- [架构目录解说（中文）](/zh/guide/architecture.md) | [Source Layer Architecture（English）](/en/guide/architecture.md)
+- [术语表（中文）](/zh/guide/glossary.md) | [Glossary（English）](/en/guide/glossary.md)
