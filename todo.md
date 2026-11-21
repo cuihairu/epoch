@@ -305,7 +305,8 @@
 - [x] [m] a2af505 混入测试拆分说明——已记录（本条勾选即为说明）：a2af505「chore: exclude test paths from codecov coverage」除 codecov.yml 外混入了 cpp 负超时回归测试（StubState `async_*_poll_never_ready` 标志 + `test_aeron_publication/subscription_ready_timeout` + `test_aeron_negative_timeout_waits_indefinitely`，即审计时点 cpp/tests/aeron_transport_test.cpp:797 附近）。混入内容属 P1-2 主题（bf115b5）且测试真实有效；历史已推送、按规不 force push 不改写；后续遵循单 commit 单主题。
 - [x] [m] todo.md:89/99/235/249 证据行号随代码更新——已刷新（2026-11-14）：:89 VectorTestMain 516→690 行（`wc -l` 实测）；P1-2 证据行号按当前源码刷新（epoch_aeron.h:15-26、epoch_aeron.c:64-90、:105-176、aeron_transport.cpp:43-77、:222-236、:251-265）；P1-1 证据行号刷新（AeronTransport.java:203-206、:238、:267-268、:279-280，现 303 行）；:99 为历史口径数值，加注不回改。
 ## 双语与自动语言切换（fleet-docs-audit-G2，2026-11-14）
-- [ ] P2【BLOCKED：缺用户拍板——双语范围与形态选型】文档站双语化：当前 VuePress 单语（lang zh-CN、无 locales、无 rootLocale/navigator.language 探测），站内无手动语言切换入口，README 仅中文；docs/en/guide 与 docs/zh/guide 各有 architecture/glossary 孤儿页未接入导航。G2 结论=「无双语自动切换，站内亦无手动切换入口」。受规基线=手动切换+显式链接（成对 X.md/X.zh.md 或 locale 路由）；自动识别为增强项。需拍板：是否上英文版+locale 路由（/=en、/zh/=zh）+自动探测，以及孤儿 en/zh 页接线或删除（审计记录：docs/审计-文档一致性.md G2 轮）。
+- [x] P2 文档站双语化基线（受规基线=手动切换+显式链接）——已修：358ad13 `docs: add manual language switch links`。接线：`docs/.vuepress/config.js` navbar 增「语言版本」下拉（中文·架构与术语 → /zh/guide/architecture.html、English·Architecture & Glossary → /en/guide/architecture.html），`docs/README.md` 快速入口下增「双语页」四链（zh/en × architecture/glossary，en↔zh 页内已有互链）。此前站点为中文单语、en/zh 四页 tracked 孤儿页未接导航、站内无语言入口——G2 结论「无双语自动切换，站内亦无手动切换入口」由此部分消除。验证：`pnpm run docs:build` 22 页绿；`docs/.vuepress/dist/zh|en/guide/{architecture,glossary}.html` 均在；首页 HTML 含 `/epoch/zh/guide/architecture.html` 与 `/epoch/en/guide/architecture.html`。
+- [ ] P2【BLOCKED：缺用户拍板——完整双语/自动识别范围】双语增强（自动识别为增强项，非基线）：当前仍无 `locales`（config.js 无 rootLocale/navigator.language 探测，浏览器语言自动切换未实现）；主指南概念/行为/协议/语言四页仍仅中文，无英文版；`/=zh`、`/zh/` 为手选路径而非 locale 路由。需拍板：是否上完整 locale 路由（/=en、/zh/=zh）+rootLocale/navigator.language 自动探测，是否翻译主指南四页英文版（审计记录：docs/审计-文档一致性.md G2 轮）。
 
 ## 续做巡检 2026-11-15（continue-r2）
 - 树状态：干净（仅 `cpp/build/`、`python/.coverage` 两个未跟踪构建产物，不夹带）；`git pull --rebase` 无更新；CI 7/7 绿（956e36a、a213f7c 两轮 G2 审计 commit 均已推送并全绿）。
@@ -318,3 +319,8 @@
 ## 续做巡检 2026-11-21（continue-r3）
 - 树状态：`git pull --rebase` 无更新（仓自 62d85eb 无新提交）；todo 仍 92/95 已勾，未勾 3 条全部 BLOCKED（:24 bigint 缺设计拍板、:300 系 :24 记录行、:308 双语化缺用户范围拍板），本轮逐项复核源码前提仍成立、全仓无拍板记录→保持 BLOCKED 不重试。
 - 本轮完成 1 项（非 todo 清单内、属仓卫生）：`cpp/build/` 与 `python/.coverage` 两个同类构建/覆盖率产物未被 `.gitignore` 覆盖（`node/coverage/`、`go/coverage.out`、`cpp/coverage.xml`、`python/coverage.xml` 均已忽略），导致每轮 `git status` 悬挂未跟踪噪音。补 `.gitignore:74 cpp/build/`、`.gitignore:97 python/.coverage`——9052e99。验证：`git check-ignore -v` 命中两行、status 仅剩本次改动、docs 门禁 22 页绿；CI 7/7 绿（9052e99）。未删除磁盘产物、未夹带未跟踪文件。
+
+## 续做巡检 2026-11-21（continue-r4）
+- 触发方式：用户连续 17 次同一指令「继续按 todo.md 顺序清任务」，两次 AskUserQuestion 多选项均被中断未录结果→判定用户不需要选择题、要按受规基线直接推进；本轮据此对**低风险、已授权基线**的 :308 动手，破坏性 API 项 :24 仍按纪律保留不代拍。
+- 完成 1 项：todo.md:308 基线部分勾掉——358ad13 `docs: add manual language switch links`（navbar 语言版本下拉 + docs/README.md 双语页四链，接线 docs/en|zh 四孤儿页）。增强部分（完整 locale 路由+rootLocale/navigator.language 自动探测、主指南四页英文版）拆为独立未勾条并标 BLOCKED 缺拍板。验证：`pnpm run docs:build` 22 页绿、dist 下 zh|en/guide/{architecture,glossary}.html 存在、首页 HTML 含 `/epoch/zh|en/guide/architecture.html`。
+- 仍 BLOCKED：todo.md:24 Node bigint（缺设计拍板——是否接受破坏性 API 变更）、:300（系 :24 记录行）、:308 后半（缺完整双语/自动识别范围拍板）。
