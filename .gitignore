@@ -71,6 +71,7 @@ node/dist/
 
 # Build outputs
 cppbuild/
+cpp/build/
 native/build/
 java/target/
 java/.cache/
@@ -93,3 +94,4 @@ cpp/coverage.xml
 java/target/jacoco.exec
 java/target/jacoco.xml
 python/coverage.xml
+python/.coverage
